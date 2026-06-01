@@ -1,3 +1,4 @@
+import 'package:frontend/features/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:ui';
@@ -74,11 +75,16 @@ class _SignupScreenState extends State<SignupScreen> {
           } else if (state is AuthSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Welcome ${state.user.username}! You placed in the ${state.percentileRank}th percentile.'),
+                content: Text('Welcome ${state.user.username}! Secure cloud registration completed.'),
                 backgroundColor: colorScheme.secondary,
               ),
             );
-            // This is where to put our home navigation if ok na
+            
+            // Navigate directly to the live dashboard on successful registration
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => DashboardScreen()),
+            );
           }
         },
         builder: (context, state) {
@@ -117,12 +123,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: Colors.white.withAlpha(178), // Fixed cross-platform compatible transparency alpha format
                           borderRadius: BorderRadius.circular(12.0),
-                          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
+                          border: Border.all(color: colorScheme.outline.withAlpha(76)),
                           boxShadow: [
                             BoxShadow(
-                              color: colorScheme.shadow.withValues(alpha: 0.04),
+                              color: colorScheme.shadow.withAlpha(10),
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             ),
@@ -146,7 +152,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.person_outline, color: colorScheme.onSurfaceVariant),
                                 hintText: 'Jane Doe',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withAlpha(128)),
                                 filled: true,
                                 fillColor: Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -181,7 +187,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.mail_outline, color: colorScheme.onSurfaceVariant),
                                 hintText: 'jane@example.com',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withAlpha(128)),
                                 filled: true,
                                 fillColor: Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -216,7 +222,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.lock_outline, color: colorScheme.onSurfaceVariant),
                                 hintText: '••••••••',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withAlpha(128)),
                                 filled: true,
                                 fillColor: Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -251,7 +257,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.compost, color: colorScheme.onSurfaceVariant),
                                 hintText: '0.0',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withAlpha(128)),
                                 filled: true,
                                 fillColor: Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

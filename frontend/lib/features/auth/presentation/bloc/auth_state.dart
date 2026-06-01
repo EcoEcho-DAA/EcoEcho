@@ -1,32 +1,20 @@
-import 'package:equatable/equatable.dart';
-import '../../data/models/user_model.dart'; 
+import 'auth_bloc.dart'; // Imports the User class definition defined above
 
-abstract class AuthState extends Equatable {
-  const AuthState();
-  
-  @override
-  List<Object?> get props => [];
-}
+abstract class AuthState {}
 
 class AuthInitial extends AuthState {}
 
 class AuthLoading extends AuthState {}
 
 class AuthSuccess extends AuthState {
-  final UserModel user;
-  final int? percentileRank; 
+  final User user;
+  final int percentileRank;
 
-  const AuthSuccess({required this.user, this.percentileRank});
-
-  @override
-  List<Object?> get props => [user, percentileRank];
+  AuthSuccess({required this.user, this.percentileRank = 0});
 }
 
 class AuthFailure extends AuthState {
   final String errorMessage;
 
-  const AuthFailure(this.errorMessage);
-
-  @override
-  List<Object> get props => [errorMessage];
+  AuthFailure({required this.errorMessage});
 }

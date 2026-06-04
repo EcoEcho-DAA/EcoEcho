@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc.dart';
 
-import 'package:frontend/features/presentation/ecowrap_story_screen.dart';
+import 'package:frontend/features/ecowrap/presentation/ecowrap_story_screen.dart';
 
 void main() {
   runApp(const MyApp());

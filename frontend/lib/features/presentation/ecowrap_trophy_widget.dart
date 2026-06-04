@@ -4,6 +4,7 @@ class EcoWrapTrophyWidget extends StatefulWidget {
   final double percentile; 
   final String assetPath;  
 
+  // TODO: The asset defaults to this standard trophy if custom icon yet to be provided
   const EcoWrapTrophyWidget({
     super.key,
     required this.percentile,
@@ -86,7 +87,7 @@ class _EcoWrapTrophyWidgetState extends State<EcoWrapTrophyWidget>
                     ),
                   ),
                 ),
-                // trophy image
+                // TODO: trophy image to be replace with custom trophy asset once available
                 Image.asset(
                   widget.assetPath,
                   width: 100,

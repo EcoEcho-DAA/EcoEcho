@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/features/auth/presentation/pages/login_page.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_bloc.dart';
-
-import 'package:frontend/features/ecowrap/presentation/ecowrap_story_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,7 +19,7 @@ class MyApp extends StatelessWidget {
         title: 'EcoEcho',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const EcoWrapStoryScreen(),
+        home: const LoginScreen(),
       ),
     );
   }

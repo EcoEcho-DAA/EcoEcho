@@ -1,4 +1,4 @@
-const { createClient } = require('redis');
+/* const { createClient } = require('redis');
 
 const redisClient = createClient({
   socket: {
@@ -11,4 +11,16 @@ redisClient.on('error', (err) => {
   console.error('Redis client error:', err);
 });
 
-module.exports = redisClient;
+module.exports = redisClient; */
+
+const { createClient } = require('redis');
+
+const redisClient = createClient({
+  url: process.env.redis_url,
+});
+
+redisClient.on('error', (err) => {
+  console.error('Redis client error:', err);
+});
+
+module.exports = redisClient; 

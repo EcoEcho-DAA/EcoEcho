@@ -123,3 +123,43 @@ start().catch((err) => {
   console.error('Failed to start server:', err);
   process.exit(1);
 });
+// 4. GET /api/challenges/daily -> Get daily challenges from database
+app.get('/api/challenges/daily', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'select id, title, description, xp_reward, tier_id from missions where is_daily = true'
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. GET /api/feed/trending -> Satisfies the community social impact feed
+app.get('/api/feed/trending', (req, res) => {
+  return res.status(200).json([
+    {
+      id: 1,
+      author_name: "Roxane Eco",
+      author_profile_url: "https://via.placeholder.com/150",
+      title: "Small Actions Matter!",
+      content: "Just finished planting 3 clean saplings around the neighborhood today.",
+      likes: 24,
+      xp_awarded: 50,
+      time_ago: "2 hours ago",
+      image_url: null
+    }
+  ]);
+});
+
+// 6. GET /api/missions/daily -> Get daily missions from database
+app.get('/api/missions/daily', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'select id, title, description, xp_reward, tier_id from missions where is_daily = true'
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});

@@ -11,7 +11,6 @@ const pool = process.env.DATABASE_URL
       database: 'ecoecho_db',
       host: process.env.POSTGRES_HOST || 'localhost',
       port: Number(process.env.POSTGRES_PORT) || 5432,
-      ssl: { rejectUnauthorized: false },
     });
 
 pool.on('error', (err) => {

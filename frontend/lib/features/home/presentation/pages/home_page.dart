@@ -40,7 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
           feedResponse.statusCode == 200) {
         setState(() {
           _userData = jsonDecode(userResponse.body);
-          _dailyChallenge = jsonDecode(challengeResponse.body);
+          final challengeData = jsonDecode(challengeResponse.body);
+          if (challengeData is List && challengeData.isNotEmpty) {
+            _dailyChallenge = challengeData[0];
+          } else if (challengeData is Map<String, dynamic>) {
+            _dailyChallenge = challengeData;
+          } else {
+            _dailyChallenge = null;
+          }
           _trendingPosts = jsonDecode(feedResponse.body);
           _isLoading = false;
         });

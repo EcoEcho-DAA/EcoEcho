@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'https://ecoecho-backend.onrender.com';
+  static const String baseUrl = 'http://localhost:3000';
   
   // App-wide memory variable to hold the logged-in person's session token
   static String? userToken;

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     email            VARCHAR(255) NOT NULL UNIQUE,
     password_hash    VARCHAR(255) NOT NULL,
     username         VARCHAR(50) NOT NULL UNIQUE,
+    first_name       VARCHAR(255),
     total_xp         INTEGER NOT NULL DEFAULT 0 CHECK (total_xp >= 0),
     city             VARCHAR(100),
     province         VARCHAR(100),
@@ -26,7 +27,9 @@ CREATE TABLE IF NOT EXISTS missions (
     id          SERIAL PRIMARY KEY,
     title       VARCHAR(200) NOT NULL,
     description TEXT NOT NULL,
-    xp_reward   INTEGER NOT NULL DEFAULT 0 CHECK (xp_reward >= 0)
+    xp_reward   INTEGER NOT NULL DEFAULT 0 CHECK (xp_reward >= 0),
+    is_daily    BOOLEAN NOT NULL DEFAULT FALSE,
+    tier_id     INTEGER REFERENCES tiers (id) ON DELETE SET NULL
 );
 
 -- user mission completions

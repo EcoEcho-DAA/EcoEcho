@@ -111,9 +111,11 @@ app.post('/api/auth/login', async (req, res) => {
 // 3. GET PROFILE OF THE LOGGED-IN USER
 app.get('/api/users/me', protect, async (req, res) => {
   try {
-    // Aligned to look up exact columns using the valid UUID string
     const userResult = await pool.query(
-      'SELECT uid, username, email, total_xp, city, province, current_tier_id FROM users WHERE uid = $1',
+      `SELECT u.uid, u.username, u.email, u.total_xp, u.city, u.province, t.tier_name 
+       FROM users u 
+       LEFT JOIN tiers t ON u.current_tier_id = t.id 
+       WHERE u.uid = $1`,
       [req.userId]
     );
 
@@ -122,6 +124,22 @@ app.get('/api/users/me', protect, async (req, res) => {
     }
 
     return res.status(200).json(userResult.rows[0]);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// GET LEADERBOARD OF TOP USERS
+app.get('/api/users/leaderboard', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.uid, u.username, u.total_xp, u.city, u.province, t.tier_name 
+       FROM users u 
+       INNER JOIN tiers t ON u.current_tier_id = t.id 
+       ORDER BY u.total_xp DESC 
+       LIMIT 10`
+    );
+    return res.status(200).json(rows);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -140,20 +158,18 @@ app.get('/api/challenges/daily', protect, async (req, res) => {
 });
 
 // 5. GET /api/feed/trending -> Satisfies the community social impact feed
-app.get('/api/feed/trending', (req, res) => {
-  return res.status(200).json([
-    {
-      id: 1,
-      author_name: "Roxane Eco",
-      author_profile_url: "https://via.placeholder.com/150",
-      title: "Small Actions Matter!",
-      content: "Just finished planting 3 clean saplings around the neighborhood today.",
-      likes: 24,
-      xp_awarded: 50,
-      time_ago: "2 hours ago",
-      image_url: null
-    }
-  ]);
+app.get('/api/feed/trending', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at 
+       FROM posts p 
+       INNER JOIN users u ON p.user_uid = u.uid 
+       ORDER BY p.created_at DESC`
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 // 6. GET /api/missions/daily

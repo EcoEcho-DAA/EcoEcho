@@ -338,10 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 itemCount: _trendingPosts.length,
                 itemBuilder: (context, index) {
                   final post = _trendingPosts[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: _buildFeedItem(post),
-                  );
+                  return _buildFeedItem(post);
                 },
               ),
             ],
@@ -352,75 +349,100 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildFeedItem(Map<String, dynamic> post) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Color(0xFFC2C9BB).withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFF79564B).withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (post['image_url'] != null)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                post['image_url'],
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 3,
+      clipBehavior: Clip.antiAliasWithSaveLayer,
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Profile avatar icon, author_name (bold), and created_at timestamp string aligned right.
+            Row(
               children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 12,
-                      backgroundImage: NetworkImage(post['author_profile_url'] ?? 'https://via.placeholder.com/150'),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(post['author_name'] ?? 'Anonymous', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF42493E))),
-                    const SizedBox(width: 8),
-                    Text(post['time_ago'] ?? 'Recently', style: const TextStyle(fontSize: 12, color: Color(0xFF72796E))),
-                  ],
+                const CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Color(0xFFC2C9BB),
+                  child: Icon(Icons.person, size: 16, color: Color(0xFF154212)),
                 ),
-                const SizedBox(height: 12),
-                Text(post['title'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF191C1A))),
-                const SizedBox(height: 4),
+                const SizedBox(width: 8),
                 Text(
-                  post['content'] ?? '',
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF42493E)),
+                  post['author_name'] ?? 'Anonymous',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xFF191C1A),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(Icons.favorite, size: 18, color: Color(0xFF154212)),
-                    const SizedBox(width: 4),
-                    Text('${post['likes'] ?? 0}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF154212))),
-                    if (post['xp_awarded'] != null) ...[
-                      const SizedBox(width: 16),
-                      const Icon(Icons.park, size: 18, color: Color(0xFF42493E)),
-                      const SizedBox(width: 4),
-                      Text('+${post['xp_awarded']} XP', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF42493E))),
-                    ]
-                  ],
+                const Spacer(),
+                Text(
+                  post['created_at'] != null
+                      ? post['created_at'].toString().substring(0, 10)
+                      : 'Recently',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF72796E),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            // Middle Block: A clean Padding widget wrapper rendering the post.caption text beautifully.
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                post['caption'] ?? '',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF42493E),
+                  height: 1.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Conditional Asset Loader: Check if 'image_url' is not null. If present, render it.
+            if (post['image_url'] != null) ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  post['image_url'],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: 220,
+                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            const Divider(height: 24, thickness: 1, color: Color(0xFFE1E3DE)),
+            // Bottom Row: Modern, unbordered interaction buttons for Likes and Share metrics.
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.favorite_border, size: 20, color: Color(0xFF154212)),
+                  label: const Text('Like', style: TextStyle(color: Color(0xFF154212), fontSize: 13, fontWeight: FontWeight.bold)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.share_outlined, size: 20, color: Color(0xFF42493E)),
+                  label: const Text('Share', style: TextStyle(color: Color(0xFF42493E), fontSize: 13, fontWeight: FontWeight.bold)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

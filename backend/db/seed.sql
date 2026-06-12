@@ -23,5 +23,5 @@ insert into missions (id, title, description, xp_reward) values
 (1, 'unplug installer', 'unplug phantom devices for 24 hours', 50),
 (2, 'hydrosaver', 'limit shower times to under 5 minutes', 40),
 (3, 'plastic purge', 'recycled 5 single-use plastic bottles', 60),
-(4, 'Plant a Tree', 'Plant a tree in your local community', 50)   
+(4, 'plant a Tree', 'plant a tree in your local community', 50)   
 on conflict (id) do nothing;

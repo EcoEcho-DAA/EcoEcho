@@ -118,7 +118,6 @@ app.get('/api/users/wrapped', protect, async (req, res) => {
   }
 }); 
 
-
 // --- INFRASTRUCTURE CONFIG ---
 app.get('/health', async (_req, res) => {
   try {

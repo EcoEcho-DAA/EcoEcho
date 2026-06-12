@@ -53,9 +53,9 @@ async function signup(req, res) {
       return res.status(400).json({ error: 'username, email, and password are required' });
     }
 
-    const score = Number(ecoScore);
-    if (!Number.isFinite(score)) {
-      return res.status(400).json({ error: 'ecoScore must be a valid number' });
+    const score = Number(ecoScore || 0);
+    if (!Number.isFinite(score) || score < 0) {
+      return res.status(400).json({ error: 'ecoScore must be a valid positive number' });
     }
 
     // divide and conquer — place user on the benchmark curve
@@ -81,7 +81,7 @@ async function signup(req, res) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'email or username already exists' });
     }
-    console.error('signup error:', err);
+    console.error('Detailed DB Error:', err);
     return res.status(500).json({ error: 'failed to create user' });
   }
 }

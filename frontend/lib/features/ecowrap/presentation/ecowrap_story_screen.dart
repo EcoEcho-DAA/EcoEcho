@@ -73,30 +73,6 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
   }
 }
 
-  /*Future<void> _fetchWrappedData() async {
-    try {
-      final data = await apiservice.get('/api/users/wrapped');
-      if (!mounted) return;
-      setState(() {
-        _wrappedData = {
-          'ranking': data['ranking'] as int,
-          'post_count': data['post_count'] as int,
-          'tree_count': data['tree_count'] as int,
-          'tier_name': data['tier_name'] as String,
-          'total_xp': data['total_xp'] as int,
-        };
-        _isLoading = false;
-      });
-      _startTimer();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Failed to load your EcoWrapped data. Please try again.';
-        _isLoading = false;
-      });
-    }
-  } */
-
   @override
   void dispose() {
     _pageTimer?.cancel();
@@ -142,6 +118,20 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
     _pageTimer?.cancel();
     _progressController.stop();
     Navigator.of(context).pop();
+  }
+
+  String _getTierBadge(String tierName) {
+  switch (tierName.toLowerCase()) {
+    case 'sprout':
+      return 'assets/icons/tier_badge_sprout.png';
+    case 'sapling':
+      return 'assets/icons/tier_badge_sapling.png';
+    case 'ancient tree':
+      return 'assets/icons/tier_badge_ancient_tree.png';
+    case 'seed':
+    default:
+      return 'assets/icons/tier_badge_seed.png';
+    }
   }
  
   @override
@@ -382,7 +372,10 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
       child: Column(
         children: [
           const SizedBox(height: 100),
-          const Icon(Icons.star, color: Colors.amber, size: 80),
+          Image.asset(_getTierBadge(_wrappedData?['tier_name'] ?? 'seed'),
+            width: 80,
+            height: 80,
+          ),
           const SizedBox(height: 24),
           Text(
             'You achieved the ${_wrappedData?['tier_name'] ?? 'Seed'} Tier!',
@@ -435,20 +428,12 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: Column(
         children: [
-          Container(
+          Image.asset(
+            'assets/images/logo.png',
             width: 60,
             height: 60,
-            decoration: BoxDecoration(
-              color: primaryGreen,
-              borderRadius: BorderRadius.circular(16),
-              ),
-            child: const Icon(
-            Icons.forest, // swap to icons in future
-            color: Colors.white, //swap to future palatte
-              size: 20,
-            ),
           ),
-          const SizedBox(height: 15),
+        const SizedBox(height: 15),
           const Text(
             'EcoWrapped 2026 Recap',
             style: TextStyle(

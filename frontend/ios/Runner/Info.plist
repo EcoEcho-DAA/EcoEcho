@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+    <string>EcoEcho needs access to your camera so you can capture and upload proof of your green activities.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>EcoEcho needs access to your microphone if you wish to record video logs of your environmental impact.</string>
 </dict>
 </plist>

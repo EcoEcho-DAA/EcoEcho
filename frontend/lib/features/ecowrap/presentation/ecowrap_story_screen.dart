@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
@@ -7,7 +8,8 @@ import 'ecowrap_trophy_widget.dart';
 import 'ecowrap_background.dart';
 import 'ecowrap_bento_grid.dart';
 import 'ecowrap_share.dart';
- 
+import '../../../core/network/api_service.dart';
+
 class EcoWrapStoryScreen extends StatefulWidget {
   const EcoWrapStoryScreen({super.key});
  
@@ -24,10 +26,11 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
   final int _secondsPerPage = 4;
   late AnimationController _progressController;
   final ScreenshotController _screenshotController = ScreenshotController();
- 
+
   Map<String, dynamic>? _wrappedData;
   bool _isLoading = true;
- 
+  String? _error;
+
   final Color primaryGreen = const Color(0xFF386A2B);
   final Color secondaryBrown = const Color(0xFF885124);
   final Color neutralGray = const Color(0xFF767777);
@@ -42,23 +45,58 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchWrappedData());
   }
  
-  Future<void> _fetchWrappedData() async {
-    // replace with real API call when backend is ready
-    await Future.delayed(const Duration(milliseconds: 300));
+ Future<void> _fetchWrappedData() async {
+  try {
+    final response = await ApiService.get('/api/users/wrapped');
+    if (response.statusCode != 200) {
+      throw Exception('Server error: ${response.statusCode}');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
     if (!mounted) return;
     setState(() {
       _wrappedData = {
-        'ranking': 12,
-        'post_count': 27,
-        'tree_count': 5,
-        'tier_name': 'Sapling',
-        'total_xp': 1500,
+        'ranking':    data['ranking']    as int,
+        'post_count': data['post_count'] as int,
+        'tree_count': data['tree_count'] as int,
+        'tier_name':  data['tier_name']  as String,
+        'total_xp':   data['total_xp']   as int,
       };
       _isLoading = false;
     });
     _startTimer();
+  } catch (e) {
+    if (!mounted) return;
+    setState(() {
+      _error = 'Failed to load your EcoWrapped data. Please try again.';
+      _isLoading = false;
+    });
   }
- 
+}
+
+  /*Future<void> _fetchWrappedData() async {
+    try {
+      final data = await apiservice.get('/api/users/wrapped');
+      if (!mounted) return;
+      setState(() {
+        _wrappedData = {
+          'ranking': data['ranking'] as int,
+          'post_count': data['post_count'] as int,
+          'tree_count': data['tree_count'] as int,
+          'tier_name': data['tier_name'] as String,
+          'total_xp': data['total_xp'] as int,
+        };
+        _isLoading = false;
+      });
+      _startTimer();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to load your EcoWrapped data. Please try again.';
+        _isLoading = false;
+      });
+    }
+  } */
+
   @override
   void dispose() {
     _pageTimer?.cancel();
@@ -110,6 +148,30 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+        if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _error = null;
+                  });
+                  _fetchWrappedData();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
  
     return Scaffold(
@@ -195,10 +257,8 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
     padding: const EdgeInsets.fromLTRB(24, 12, 12, 0),
     child: Row(
       children: [
-        // segmented progress fills remaining space
-        Expanded(child: _buildSegmentedProgress()),
-        // X button
-        GestureDetector(
+        Expanded(child: _buildSegmentedProgress()), 
+        GestureDetector(    //x button
           onTap: _close,
           child: Container(
             width: 36,
@@ -208,11 +268,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
               color: neutralGray.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.close,
-              size: 18,
-              color: neutralGray,
-            ),
+            child: Icon( Icons.close, size: 18, color: neutralGray),
           ),
         ),
       ],
@@ -278,8 +334,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
                 listenable: _progressController,
                 builder: (context, child) => CustomPaint(
                   size: const Size(200, 200),
-                  painter: _ProgressRingPainter(
-                  // animates from 0 → 12% (not 0 → 100%)
+                  painter: _ProgressRingPainter(    // animates from 0 → 12% (not 0 → 100%)
                   progress: _progressController.value * ((_wrappedData?['ranking'] ?? 0) / 100),
                   strokeWidth: 10,
                   color: primaryGreen,

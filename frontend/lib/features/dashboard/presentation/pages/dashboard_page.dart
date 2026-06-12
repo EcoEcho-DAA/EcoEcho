@@ -14,7 +14,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
   static final List<Widget> _widgetOptions = <Widget>[
-    const HomeScreen(),
+    const HomePage(),
     const MissionBoardScreen(),
     const LeaderboardScreen(),
     const ProfileScreen(),

@@ -1,448 +1,401 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import '../../../../../core/network/api_service.dart';
+import 'package:camera/camera.dart';
+import 'camera_screen.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  bool _isLoading = true;
-  String? _errorMessage;
-  
-  Map<String, dynamic>? _userData;
-  Map<String, dynamic>? _dailyChallenge;
-  List<dynamic> _trendingPosts = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchHomeData();
-  }
-
-  Future<void> _fetchHomeData() async {
-    try {
-      final responses = await Future.wait([
-        ApiService.get('/api/users/me'),
-        ApiService.get('/api/challenges/daily'),
-        ApiService.get('/api/feed/trending'),
-      ]);
-
-      final userResponse = responses[0];
-      final challengeResponse = responses[1];
-      final feedResponse = responses[2];
-
-      if (userResponse.statusCode == 200 && 
-          challengeResponse.statusCode == 200 && 
-          feedResponse.statusCode == 200) {
-        setState(() {
-          _userData = jsonDecode(userResponse.body);
-          final challengeData = jsonDecode(challengeResponse.body);
-          if (challengeData is List && challengeData.isNotEmpty) {
-            _dailyChallenge = challengeData[0];
-          } else if (challengeData is Map<String, dynamic>) {
-            _dailyChallenge = challengeData;
-          } else {
-            _dailyChallenge = null;
-          }
-          _trendingPosts = jsonDecode(feedResponse.body);
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Failed to load data. Please try again later.';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Detailed Error: $e');
-      setState(() {
-        _errorMessage = 'Network error: $e';
-        _isLoading = false;
-      });
-    }
-  }
+class _HomePageState extends State<HomePage> {
+  int _selectedNavIndex = 0;
+  bool _isCommunityFeed = true;
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF8FAF5),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF154212)),
-        ),
-      );
-    }
-
-    if (_errorMessage != null) {
-      return Scaffold(
-        backgroundColor: const Color(0xFFF8FAF5),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(_errorMessage!, style: const TextStyle(color: Color(0xFFBA1A1A))),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _isLoading = true;
-                    _errorMessage = null;
-                  });
-                  _fetchHomeData();
-                },
-                child: const Text('Retry'),
-              )
-            ],
-          ),
-        ),
-      );
-    }
-
-    final currentXp = _userData?['current_xp'] ?? 0;
-    final maxXp = _userData?['max_xp'] ?? 500;
-    final progressXp = (currentXp / maxXp).clamp(0.0, 1.0);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF5),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF8FAF5),
         elevation: 0,
-        title: const Row(
-          children: [
-            Icon(Icons.eco, color: Color(0xFF154212)),
-            SizedBox(width: 8),
-            Text(
-              'EcoEcho',
-              style: TextStyle(
-                color: Color(0xFF154212),
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Be Vietnam Pro',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Color(0xFF154212)),
-            onPressed: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              backgroundColor: const Color(0xFFC2C9BB),
-              backgroundImage: NetworkImage(
-                _userData?['profile_url'] ?? 'https://via.placeholder.com/150',
-              ),
-            ),
-          )
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _fetchHomeData,
-        color: const Color(0xFF154212),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        leadingWidth: 70,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF2F4EF),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0xFF79564B).withValues(alpha: 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Good morning, ${_userData?['first_name'] ?? 'User'}!',
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF191C1A),
-                        fontFamily: 'Be Vietnam Pro',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "You're making a difference today in ${_userData?['city'] ?? 'your city'}.",
-                      style: const TextStyle(
-                        color: Color(0xFF42493E),
-                        fontSize: 16,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ],
-                ),
+              const CircleAvatar(
+                backgroundImage: NetworkImage('https://via.placeholder.com/150'),
               ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Color(0xFFC2C9BB).withValues(alpha: 0.5)),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0xFF79564B).withValues(alpha: 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    const Icon(Icons.energy_savings_leaf, size: 64, color: Color(0xFF154212)),
-                    const SizedBox(height: 16),
-                    Text(
-                      _userData?['tier_name'] ?? 'Tier Level',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF154212),
-                        fontFamily: 'Be Vietnam Pro',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.local_fire_department, color: Color(0xFF79564B), size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${_userData?['streak_days'] ?? 0} DAY STREAK',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF79564B),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('XP Progress', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF42493E))),
-                        Text('$currentXp / $maxXp', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF42493E))),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progressXp,
-                        backgroundColor: const Color(0xFFE1E3DE),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF154212)),
-                        minHeight: 8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_dailyChallenge != null)
-                Container(
-                  padding: const EdgeInsets.all(24),
+              Positioned(
+                bottom: -4,
+                right: -4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2D5A27),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white, width: 1.5),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Daily Challenge',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontFamily: 'Be Vietnam Pro',
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${_dailyChallenge?['title'] ?? 'Complete a task'}\n${_dailyChallenge?['description'] ?? ''}',
-                              style: const TextStyle(
-                                color: Color(0xFFA1D494),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF154212),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        ),
-                        child: const Text('Complete', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                      )
-                    ],
+                  child: const Text(
+                    'L2',
+                    style: TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
-              const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Trending',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF191C1A),
-                      fontFamily: 'Be Vietnam Pro',
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {},
-                    child: const Text(
-                      'View all',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF154212),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _trendingPosts.length,
-                itemBuilder: (context, index) {
-                  final post = _trendingPosts[index];
-                  return _buildFeedItem(post);
-                },
               ),
             ],
           ),
         ),
+        title: const Text(
+          'EcoEcho',
+          style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none, color: Color(0xFF154212)),
+                onPressed: () {},
+              ),
+              Positioned(
+                top: 14,
+                right: 14,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFBA1A1A),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              )
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          _buildLogActivitySection(),
+          const SizedBox(height: 24),
+          _buildFeedToggle(),
+          const SizedBox(height: 16),
+          if (_isCommunityFeed) ...[
+            _buildPostCard(
+              name: 'Juan D.',
+              timeLocation: 'Quezon City • 2h ago',
+              xp: '+50 XP',
+              tagIcon: Icons.park,
+              tagText: 'Tree Planting',
+              tagColor: const Color(0xFF2D5934),
+              tagBgColor: const Color(0xFFE7E9E4),
+              content: 'Planted 5 new saplings at the local community garden this morning! Feeling hopeful for a greener future. 🌱\n\n#Reforest #GreenLiving #EcoEcho',
+              likes: '24',
+              comments: '5',
+            ),
+            const SizedBox(height: 16),
+            _buildPostCard(
+              name: 'Elena M.',
+              timeLocation: 'Makati City • 5h ago',
+              xp: '+30 XP',
+              tagIcon: Icons.directions_bike,
+              tagText: 'Sustainable Transport',
+              tagColor: const Color(0xFF79574C),
+              tagBgColor: const Color(0xFFFED0C1).withOpacity(0.3),
+              content: 'Biked to work today! Saved on gas and got my morning cardio in. Highly recommend taking the scenic route.\n\n#EcoFriendly #Biking #ZeroEmissions',
+              likes: '112',
+              comments: '18',
+              isLiked: true,
+            ),
+          ] else ...[
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text('Friends feed is empty.'),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildFeedItem(Map<String, dynamic> post) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 3,
-      clipBehavior: Clip.antiAliasWithSaveLayer,
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Profile avatar icon, author_name (bold), and created_at timestamp string aligned right.
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Color(0xFFC2C9BB),
-                  child: Icon(Icons.person, size: 16, color: Color(0xFF154212)),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  post['author_name'] ?? 'Anonymous',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Color(0xFF191C1A),
+  Widget _buildLogActivitySection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF79574C).withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        children: [
+          const CircleAvatar(
+            radius: 28,
+            backgroundColor: Color(0xFF2D5A27),
+            child: Icon(Icons.add_a_photo, color: Color(0xFF9DD090), size: 28),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Log Green Activity',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF191C1A)),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Upload a photo to earn XP and inspire the community.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF42493E), fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () async {
+              try {
+                // Fetch the available cameras from the device hardware
+                final cameras = await availableCameras();
+
+                if (!mounted) return;
+
+                // Navigate to the custom camera interface
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CameraScreen(cameras: cameras),
                   ),
-                ),
-                const Spacer(),
-                Text(
-                  post['created_at'] != null
-                      ? post['created_at'].toString().substring(0, 10)
-                      : 'Recently',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF72796E),
-                  ),
-                ),
-              ],
+                );
+              } catch (e) {
+                debugPrint('Error fetching cameras: $e');
+              }
+            },
+            icon: const Icon(Icons.upload, size: 18),
+            label: const Text('Upload Proof', style: TextStyle(fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF154212),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              elevation: 0,
             ),
-            const SizedBox(height: 12),
-            // Middle Block: A clean Padding widget wrapper rendering the post.caption text beautifully.
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
-                post['caption'] ?? '',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF42493E),
-                  height: 1.4,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: const Color(0xFFC2C9BB).withOpacity(0.3))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _isCommunityFeed = true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _isCommunityFeed ? const Color(0xFF154212) : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  'Community',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _isCommunityFeed ? const Color(0xFF154212) : const Color(0xFF42493E),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            // Conditional Asset Loader: Check if 'image_url' is not null. If present, render it.
-            if (post['image_url'] != null) ...[
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  post['image_url'],
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: 220,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+          ),
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _isCommunityFeed = false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: !_isCommunityFeed ? const Color(0xFF154212) : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  'Friends',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: !_isCommunityFeed ? const Color(0xFF154212) : const Color(0xFF42493E),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostCard({
+    required String name,
+    required String timeLocation,
+    required String xp,
+    required IconData tagIcon,
+    required String tagText,
+    required Color tagColor,
+    required Color tagBgColor,
+    required String content,
+    required String likes,
+    required String comments,
+    bool isLiked = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF79574C).withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const CircleAvatar(
+                    backgroundColor: Color(0xFFECEFEA),
+                    radius: 20,
+                    backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF191C1A)),
+                      ),
+                      Text(
+                        timeLocation,
+                        style: const TextStyle(color: Color(0xFF42493E), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF15411F),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.stars, color: Colors.white, size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      xp,
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
             ],
-            const Divider(height: 24, thickness: 1, color: Color(0xFFE1E3DE)),
-            // Bottom Row: Modern, unbordered interaction buttons for Likes and Share metrics.
-            Row(
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: tagBgColor,
+              border: Border.all(color: tagColor.withOpacity(0.2)),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.favorite_border, size: 20, color: Color(0xFF154212)),
-                  label: const Text('Like', style: TextStyle(color: Color(0xFF154212), fontSize: 13, fontWeight: FontWeight.bold)),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                TextButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.share_outlined, size: 20, color: Color(0xFF42493E)),
-                  label: const Text('Share', style: TextStyle(color: Color(0xFF42493E), fontSize: 13, fontWeight: FontWeight.bold)),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
+                Icon(tagIcon, size: 16, color: tagColor),
+                const SizedBox(width: 6),
+                Text(
+                  tagText,
+                  style: TextStyle(color: tagColor, fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            content,
+            style: const TextStyle(fontSize: 16, color: Color(0xFF191C1A), height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 220,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFECEFEA),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.image, size: 48, color: Color(0xFFC2C9BB)),
+          ),
+          const SizedBox(height: 16),
+          Divider(height: 1, color: const Color(0xFFC2C9BB).withOpacity(0.2)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                isLiked ? Icons.eco : Icons.eco_outlined,
+                color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                likes,
+                style: TextStyle(
+                  color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 24),
+              const Icon(Icons.chat_bubble_outline, color: Color(0xFF42493E), size: 22),
+              const SizedBox(width: 8),
+              Text(
+                comments,
+                style: const TextStyle(color: Color(0xFF42493E), fontWeight: FontWeight.w600, fontSize: 12),
+              ),
+              const Spacer(),
+              const Icon(Icons.share, color: Color(0xFF42493E), size: 22),
+            ],
+          ),
+        ],
       ),
     );
   }

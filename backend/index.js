@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('./src/config/db');
 const redisClient = require('./src/config/redisClient');
+const { getWrappedDataForUser } = require('./src/controllers/wrappedQueriesController');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -129,14 +130,30 @@ app.get('/api/users/me', protect, async (req, res) => {
   }
 });
 
-// GET LEADERBOARD OF TOP USERS
+// --- DYNAMIC ROUTES (CONTINUED) ---
+
+// 4. GET ECOWRAPPED SUMMARY FOR THE LOGGED-IN USER
+app.get('/api/users/wrapped', protect, async (req, res) => {
+  try {
+    const data = await getWrappedDataForUser(req.userId);
+    if (!data) {
+      return res.status(404).json({ message: 'No wrapped data found for this user.' });
+    }
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('[GET /api/users/wrapped]', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. GET LEADERBOARD OF TOP USERS
 app.get('/api/users/leaderboard', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT u.uid, u.username, u.total_xp, u.city, u.province, t.tier_name 
-       FROM users u 
-       INNER JOIN tiers t ON u.current_tier_id = t.id 
-       ORDER BY u.total_xp DESC 
+      `SELECT u.uid, u.username, u.total_xp, u.city, u.province, t.tier_name
+       FROM users u
+       INNER JOIN tiers t ON u.current_tier_id = t.id
+       ORDER BY u.total_xp DESC
        LIMIT 10`
     );
     return res.status(200).json(rows);
@@ -145,7 +162,7 @@ app.get('/api/users/leaderboard', async (req, res) => {
   }
 });
 
-// 4. GET /api/challenges/daily
+// 6. GET /api/challenges/daily
 app.get('/api/challenges/daily', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -157,13 +174,13 @@ app.get('/api/challenges/daily', protect, async (req, res) => {
   }
 });
 
-// 5. GET /api/feed/trending -> Satisfies the community social impact feed
+// 7. GET /api/feed/trending -> Satisfies the community social impact feed
 app.get('/api/feed/trending', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at 
-       FROM posts p 
-       INNER JOIN users u ON p.user_uid = u.uid 
+      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at
+       FROM posts p
+       INNER JOIN users u ON p.user_uid = u.uid
        ORDER BY p.created_at DESC`
     );
     return res.status(200).json(rows);
@@ -172,7 +189,7 @@ app.get('/api/feed/trending', async (req, res) => {
   }
 });
 
-// 6. GET /api/missions/daily
+// 8. GET /api/missions/daily
 app.get('/api/missions/daily', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(

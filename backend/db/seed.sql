@@ -22,5 +22,6 @@ on conflict do nothing;
 insert into missions (id, title, description, xp_reward, is_daily, tier_id) values
 (1, 'unplug installer', 'unplug phantom devices for 24 hours', 50, true, 1),
 (2, 'hydrosaver', 'limit shower times to under 5 minutes', 40, false, 2),
-(3, 'plastic purge', 'recycled 5 single-use plastic bottles', 60, true, 1)
+(3, 'plastic purge', 'recycled 5 single-use plastic bottles', 60, true, 1),
+(4, 'plant a Tree', 'plant a tree in your local community', 50, true, 1)
 on conflict (id) do nothing;

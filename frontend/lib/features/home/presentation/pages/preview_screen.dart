@@ -1,0 +1,167 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+
+class PreviewScreen extends StatefulWidget {
+  final String imagePath;
+
+  const PreviewScreen({Key? key, required this.imagePath}) : super(key: key);
+
+  @override
+  State<PreviewScreen> createState() => _PreviewScreenState();
+}
+
+class _PreviewScreenState extends State<PreviewScreen> {
+  final TextEditingController _captionController = TextEditingController();
+  String _selectedTag = 'Tree Planting';
+  final List<String> _tags = [
+    'Tree Planting',
+    'Sustainable Transport',
+    'Recycling',
+    'Energy Saving',
+    'Cleanup Drive'
+  ];
+  bool _isUploading = false;
+
+  void _uploadPost() async {
+    setState(() => _isUploading = true);
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Proof uploaded successfully! +50 XP'),
+        backgroundColor: Color(0xFF154212),
+      ),
+    );
+
+    Navigator.of(context).pop();
+    Navigator.of(context).pop();
+  }
+
+  @override
+  void dispose() {
+    _captionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAF5),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF8FAF5),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF191C1A)),
+        title: const Text(
+          'New Activity',
+          style: TextStyle(color: Color(0xFF191C1A), fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.file(
+                File(widget.imagePath),
+                width: double.infinity,
+                height: 300,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            const Text(
+              'Caption',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF191C1A)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _captionController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Describe your green activity...',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: const Color(0xFFC2C9BB).withOpacity(0.5)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: const Color(0xFFC2C9BB).withOpacity(0.5)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF154212), width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            const Text(
+              'Category',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF191C1A)),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _tags.map((tag) {
+                final isSelected = _selectedTag == tag;
+                return ChoiceChip(
+                  label: Text(tag),
+                  selected: isSelected,
+                  selectedColor: const Color(0xFF154212),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF42493E),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  backgroundColor: Colors.white,
+                  side: BorderSide(
+                    color: isSelected ? const Color(0xFF154212) : const Color(0xFFC2C9BB).withOpacity(0.5),
+                  ),
+                  onSelected: (selected) {
+                    if (selected) setState(() => _selectedTag = tag);
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 40),
+
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton(
+                onPressed: _isUploading ? null : _uploadPost,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF154212),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(27),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isUploading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Share to Community',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../home/presentation/pages/home_page.dart';
+import '../../../missions/presentation/mission_board_screen.dart';
+import '../../../leaderboard/presentation/leaderboard_screen.dart';
+import '../../../profile/presentation/profile_screen.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -10,30 +14,10 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
   static final List<Widget> _widgetOptions = <Widget>[
-    const Center(
-      child: Text(
-        'Home Placeholder',
-        style: TextStyle(fontSize: 24, fontFamily: 'Inter', color: Color(0xFF154212)),
-      ),
-    ),
-    const Center(
-      child: Text(
-        'Missions Placeholder',
-        style: TextStyle(fontSize: 24, fontFamily: 'Inter', color: Color(0xFF154212)),
-      ),
-    ),
-    const Center(
-      child: Text(
-        'Leaderboard Placeholder',
-        style: TextStyle(fontSize: 24, fontFamily: 'Inter', color: Color(0xFF154212)),
-      ),
-    ),
-    const Center(
-      child: Text(
-        'Profile Placeholder',
-        style: TextStyle(fontSize: 24, fontFamily: 'Inter', color: Color(0xFF154212)),
-      ),
-    ),
+    const HomePage(),
+    const MissionBoardScreen(),
+    const LeaderboardScreen(),
+    const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -46,11 +30,6 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAF5),
-      appBar: AppBar(
-        title: const Text('EcoEcho', style: TextStyle(fontFamily: 'Be Vietnam Pro', fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF154212),
-        elevation: 0,
-      ),
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[

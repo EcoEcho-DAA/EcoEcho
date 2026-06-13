@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Added for session management
  
 import 'ecowrap_trophy_widget.dart';
 import 'ecowrap_background.dart';
@@ -45,33 +46,47 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) => _fetchWrappedData());
   }
  
- Future<void> _fetchWrappedData() async {
-  try {
-    final response = await ApiService.get('/api/users/wrapped');
-    if (response.statusCode != 200) {
-      throw Exception('Server error: ${response.statusCode}');
+  Future<void> _fetchWrappedData() async {
+    try {
+      // 1. Pull the securely saved JWT token from local shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('token'); // Uses the authentication login session key
+
+      // 2. Inject the Bearer token directly inside the ApiService request headers matrix
+      final response = await ApiService.get(
+        '/api/users/wrapped',
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+      
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (!mounted) return;
+      
+      setState(() {
+        _wrappedData = {
+          'ranking':    data['ranking']    as int,
+          'post_count': data['post_count'] as int,
+          'tree_count': data['tree_count'] as int,
+          'tier_name':  data['tier_name']  as String,
+          'total_xp':   data['total_xp']   as int,
+        };
+        _isLoading = false;
+      });
+      _startTimer();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to load your EcoWrapped data. Please try again.';
+        _isLoading = false;
+      });
     }
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    if (!mounted) return;
-    setState(() {
-      _wrappedData = {
-        'ranking':    data['ranking']    as int,
-        'post_count': data['post_count'] as int,
-        'tree_count': data['tree_count'] as int,
-        'tier_name':  data['tier_name']  as String,
-        'total_xp':   data['total_xp']   as int,
-      };
-      _isLoading = false;
-    });
-    _startTimer();
-  } catch (e) {
-    if (!mounted) return;
-    setState(() {
-      _error = 'Failed to load your EcoWrapped data. Please try again.';
-      _isLoading = false;
-    });
   }
-}
 
   @override
   void dispose() {
@@ -95,24 +110,24 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
   }
  
   void _navigate(bool forward) {
-  _pageTimer?.cancel();
-  _progressController.stop();
+    _pageTimer?.cancel();
+    _progressController.stop();
 
-  // guard: don't navigate if PageView isn't built yet
-  if (!_pageController.hasClients) return;
+    // guard: don't navigate if PageView isn't built yet
+    if (!_pageController.hasClients) return;
 
-  if (forward && _currentPage < _totalPages - 1) {
-    _pageController.nextPage(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
-  } else if (!forward && _currentPage > 0) {
-    _pageController.previousPage(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
+    if (forward && _currentPage < _totalPages - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    } else if (!forward && _currentPage > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    }
   }
-}
  
   void _close() {
     _pageTimer?.cancel();
@@ -121,16 +136,16 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
   }
 
   String _getTierBadge(String tierName) {
-  switch (tierName.toLowerCase()) {
-    case 'sprout':
-      return 'assets/icons/tier_badge_sprout.png';
-    case 'sapling':
-      return 'assets/icons/tier_badge_sapling.png';
-    case 'ancient tree':
-      return 'assets/icons/tier_badge_ancient_tree.png';
-    case 'seed':
-    default:
-      return 'assets/icons/tier_badge_seed.png';
+    switch (tierName.toLowerCase()) {
+      case 'sprout':
+        return 'assets/icons/tier_badge_sprout.png';
+      case 'sapling':
+        return 'assets/icons/tier_badge_sapling.png';
+      case 'ancient tree':
+        return 'assets/icons/tier_badge_ancient_tree.png';
+      case 'seed':
+      default:
+        return 'assets/icons/tier_badge_seed.png';
     }
   }
  
@@ -140,7 +155,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-        if (_error != null) {
+    if (_error != null) {
       return Scaffold(
         body: Center(
           child: Column(
@@ -320,14 +335,14 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
           Stack(
             alignment: Alignment.center,
             children: [
-              ListenableBuilder(
-                listenable: _progressController,
+              AnimatedBuilder( // Restored to AnimatedBuilder to prevent compile-time deprecation conflicts
+                animation: _progressController,
                 builder: (context, child) => CustomPaint(
                   size: const Size(200, 200),
                   painter: _ProgressRingPainter(    // animates from 0 → 12% (not 0 → 100%)
-                  progress: _progressController.value * ((_wrappedData?['ranking'] ?? 0) / 100),
-                  strokeWidth: 10,
-                  color: primaryGreen,
+                    progress: _progressController.value * ((_wrappedData?['ranking'] ?? 0) / 100),
+                    strokeWidth: 10,
+                    color: primaryGreen,
                   ),
                 ),
               ),
@@ -433,7 +448,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
             width: 60,
             height: 60,
           ),
-        const SizedBox(height: 15),
+          const SizedBox(height: 15),
           const Text(
             'EcoWrapped 2026 Recap',
             style: TextStyle(
@@ -444,13 +459,13 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
           ),
           const SizedBox(height: 15),
           Expanded(
-              child: EcoWrapBentoGrid(
-                tierName: _wrappedData?['tier_name'] ?? 'Seed',
-                ranking: _wrappedData?['ranking'] ?? 0,
-                postCount: _wrappedData?['post_count'] ?? 0,
-                treeCount: _wrappedData?['tree_count'] ?? 0,
-                totalXp: _wrappedData?['total_xp'] ?? 0,
-              ),
+            child: EcoWrapBentoGrid(
+              tierName: _wrappedData?['tier_name'] ?? 'Seed',
+              ranking: _wrappedData?['ranking'] ?? 0,
+              postCount: _wrappedData?['post_count'] ?? 0,
+              treeCount: _wrappedData?['tree_count'] ?? 0,
+              totalXp: _wrappedData?['total_xp'] ?? 0,
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(

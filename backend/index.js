@@ -177,32 +177,29 @@ app.get('/api/users/me', protect, async (req, res) => {
   }
 });
 
-// 4. GET ECOWRAPPED SUMMARY FOR THE LOGGED-IN USER
-app.get('/api/users/wrapped', protect, async (req, res) => {
+// GET POSTS OF THE LOGGED-IN USER
+app.get('/api/users/me/posts', protect, async (req, res) => {
   try {
-    const data = await getWrappedDataForUser(req.userId);
-    if (!data) {
-      return res.status(404).json({ message: 'No wrapped data found for this user.' });
-    }
-    return res.status(200).json(data);
+    const { rows } = await pool.query(
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me,
+        EXISTS(SELECT 1 FROM post_downvotes pd WHERE pd.post_id = p.id AND pd.user_uid = $1) as is_downvoted_by_me
+       FROM posts p
+       INNER JOIN users u ON p.user_uid = u.uid
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.user_uid = $1
+       ORDER BY p.created_at DESC`,
+      [req.userId]
+    );
+    return res.status(200).json(rows);
   } catch (err) {
-    console.error('[GET /api/users/wrapped]', err);
+    console.error('GET /api/users/me/posts error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
-
-async function clearLeaderboardCache() {
-  if (redisClient && redisClient.isOpen) {
-    try {
-      const keys = await redisClient.keys('leaderboard:*');
-      if (keys.length > 0) {
-        await redisClient.del(keys);
-      }
-    } catch (e) {
-      console.error('Error clearing leaderboard cache:', e);
-    }
-  }
-}
 
 // 5. GET LEADERBOARD OF TOP USERS (Dynamic with Heap Sort)
 app.get('/api/users/leaderboard', async (req, res) => {
@@ -293,6 +290,110 @@ app.get('/api/users/leaderboard', async (req, res) => {
   }
 });
 
+// 4. GET ECOWRAPPED SUMMARY FOR THE LOGGED-IN USER
+app.get('/api/users/wrapped', protect, async (req, res) => {
+  try {
+    const data = await getWrappedDataForUser(req.userId);
+    if (!data) {
+      return res.status(404).json({ message: 'No wrapped data found for this user.' });
+    }
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('[GET /api/users/wrapped]', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SEARCH BUDDY (peer-discovery via KMP string match) ---
+app.post('/api/users/search-buddy', protect, async (req, res) => {
+  try {
+    const { query } = req.body;
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+
+    const { rows: allUsers } = await pool.query(
+      `SELECT u.uid::text as uid, u.username, u.total_xp, u.city, u.province, t.tier_name
+       FROM users u
+       LEFT JOIN tiers t ON u.current_tier_id = t.id`
+    );
+
+    const matches = [];
+    for (const u of allUsers) {
+      if (kmpContains(u.uid, query)) {
+        matches.push(u);
+      }
+    }
+
+    if (matches.length > 0) {
+      return res.status(200).json(matches);
+    } else {
+      return res.status(404).json({ error: 'Buddy UID not found' });
+    }
+  } catch (err) {
+    console.error('Search buddy error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- GET PROFILE OF A SPECIFIC USER ---
+app.get('/api/users/:uid', protect, async (req, res) => {
+  try {
+    const userResult = await pool.query(
+      `SELECT u.uid, u.username, u.email, u.total_xp, u.city, u.province, t.tier_name 
+       FROM users u 
+       LEFT JOIN tiers t ON u.current_tier_id = t.id 
+       WHERE u.uid = $1`,
+      [req.params.uid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+
+    return res.status(200).json(userResult.rows[0]);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- GET POSTS OF A SPECIFIC USER ---
+app.get('/api/users/:uid/posts', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $2) as is_liked_by_me,
+        EXISTS(SELECT 1 FROM post_downvotes pd WHERE pd.post_id = p.id AND pd.user_uid = $2) as is_downvoted_by_me
+       FROM posts p
+       INNER JOIN users u ON p.user_uid = u.uid
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.user_uid = $1
+       ORDER BY p.created_at DESC`,
+      [req.params.uid, req.userId]
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    console.error('GET /api/users/:uid/posts error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+async function clearLeaderboardCache() {
+  if (redisClient && redisClient.isOpen) {
+    try {
+      const keys = await redisClient.keys('leaderboard:*');
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+      }
+    } catch (e) {
+      console.error('Error clearing leaderboard cache:', e);
+    }
+  }
+}
+
 // 6. GET /api/challenges/daily
 app.get('/api/challenges/daily', protect, async (req, res) => {
   try {
@@ -346,10 +447,12 @@ app.get('/api/feed/trending', optionalProtect, async (req, res) => {
   try {
     const userId = req.userId || null;
     const { rows } = await pool.query(
-      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
-        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me,
+        EXISTS(SELECT 1 FROM post_downvotes pd WHERE pd.post_id = p.id AND pd.user_uid = $1) as is_downvoted_by_me
        FROM posts p
        INNER JOIN users u ON p.user_uid = u.uid
        LEFT JOIN categories c ON p.category_id = c.id
@@ -445,8 +548,10 @@ app.get('/api/users/me/posts', protect, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
-        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me,
+        EXISTS(SELECT 1 FROM post_downvotes pd WHERE pd.post_id = p.id AND pd.user_uid = $1) as is_downvoted_by_me
        FROM posts p
        INNER JOIN users u ON p.user_uid = u.uid
        LEFT JOIN categories c ON p.category_id = c.id
@@ -466,6 +571,10 @@ app.get('/api/users/me/posts', protect, async (req, res) => {
 app.post('/api/posts/:id/like', protect, async (req, res) => {
   try {
     const postId = req.params.id;
+    await pool.query(
+      'DELETE FROM post_downvotes WHERE post_id = $1 AND user_uid = $2',
+      [postId, req.userId]
+    );
     await pool.query(
       'INSERT INTO post_likes (post_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [postId, req.userId]
@@ -489,16 +598,51 @@ app.delete('/api/posts/:id/like', protect, async (req, res) => {
   }
 });
 
-app.get('/api/posts/:id/comments', async (req, res) => {
+app.post('/api/posts/:id/downvote', protect, async (req, res) => {
   try {
     const postId = req.params.id;
+    await pool.query(
+      'DELETE FROM post_likes WHERE post_id = $1 AND user_uid = $2',
+      [postId, req.userId]
+    );
+    await pool.query(
+      'INSERT INTO post_downvotes (post_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [postId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/posts/:id/downvote', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    await pool.query(
+      'DELETE FROM post_downvotes WHERE post_id = $1 AND user_uid = $2',
+      [postId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/posts/:id/comments', optionalProtect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.userId || null;
     const { rows } = await pool.query(
-      `SELECT pc.id, pc.content, pc.created_at, pc.user_uid, u.username as author_name 
+      `SELECT pc.id, pc.content, pc.created_at, pc.user_uid, u.username as author_name,
+        (SELECT COUNT(*)::int FROM comment_likes cl WHERE cl.comment_id = pc.id) as likes_count,
+        (SELECT COUNT(*)::int FROM comment_downvotes cd WHERE cd.comment_id = pc.id) as downvotes_count,
+        EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = pc.id AND cl.user_uid = $1) as is_liked_by_me,
+        EXISTS(SELECT 1 FROM comment_downvotes cd WHERE cd.comment_id = pc.id AND cd.user_uid = $1) as is_downvoted_by_me
        FROM post_comments pc 
        JOIN users u ON pc.user_uid = u.uid 
-       WHERE pc.post_id = $1 
+       WHERE pc.post_id = $2 
        ORDER BY pc.created_at ASC`,
-      [postId]
+      [userId, postId]
     );
     res.status(200).json(rows);
   } catch (err) {
@@ -530,6 +674,84 @@ app.delete('/api/posts/:id/comment/:commentId', protect, async (req, res) => {
       [commentId, id, req.userId]
     );
     if (rowCount === 0) return res.status(404).json({ error: 'Comment not found or not authorized' });
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- REPORT POST ---
+app.post('/api/posts/:id/report', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ error: 'Reason is required' });
+
+    await pool.query(
+      'INSERT INTO post_reports (reporter_uid, post_id, reason) VALUES ($1, $2, $3)',
+      [req.userId, postId, reason]
+    );
+    res.status(201).json({ success: true, message: 'Report submitted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- COMMENT VOTING ---
+app.post('/api/comments/:id/like', protect, async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    await pool.query(
+      'DELETE FROM comment_downvotes WHERE comment_id = $1 AND user_uid = $2',
+      [commentId, req.userId]
+    );
+    await pool.query(
+      'INSERT INTO comment_likes (comment_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [commentId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/comments/:id/like', protect, async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    await pool.query(
+      'DELETE FROM comment_likes WHERE comment_id = $1 AND user_uid = $2',
+      [commentId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/comments/:id/downvote', protect, async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    await pool.query(
+      'DELETE FROM comment_likes WHERE comment_id = $1 AND user_uid = $2',
+      [commentId, req.userId]
+    );
+    await pool.query(
+      'INSERT INTO comment_downvotes (comment_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [commentId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/comments/:id/downvote', protect, async (req, res) => {
+  try {
+    const commentId = req.params.id;
+    await pool.query(
+      'DELETE FROM comment_downvotes WHERE comment_id = $1 AND user_uid = $2',
+      [commentId, req.userId]
+    );
     res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -577,6 +799,54 @@ async function start() {
     console.log('[INIT] Verified or created post_reports table.');
   } catch (err) {
     console.log('[INIT WARNING] post_reports check skipped:', err.message);
+  }
+
+  // Ensure post_downvotes table exists
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS post_downvotes (
+        id SERIAL PRIMARY KEY,
+        post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+        user_uid UUID REFERENCES users(uid) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(post_id, user_uid)
+      )
+    `);
+    console.log('[INIT] Verified or created post_downvotes table.');
+  } catch (err) {
+    console.log('[INIT WARNING] post_downvotes check skipped:', err.message);
+  }
+
+  // Ensure comment_likes table exists
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comment_likes (
+        id SERIAL PRIMARY KEY,
+        comment_id INTEGER REFERENCES post_comments(id) ON DELETE CASCADE,
+        user_uid UUID REFERENCES users(uid) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(comment_id, user_uid)
+      )
+    `);
+    console.log('[INIT] Verified or created comment_likes table.');
+  } catch (err) {
+    console.log('[INIT WARNING] comment_likes check skipped:', err.message);
+  }
+
+  // Ensure comment_downvotes table exists
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comment_downvotes (
+        id SERIAL PRIMARY KEY,
+        comment_id INTEGER REFERENCES post_comments(id) ON DELETE CASCADE,
+        user_uid UUID REFERENCES users(uid) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(comment_id, user_uid)
+      )
+    `);
+    console.log('[INIT] Verified or created comment_downvotes table.');
+  } catch (err) {
+    console.log('[INIT WARNING] comment_downvotes check skipped:', err.message);
   }
 
   app.listen(PORT, () => console.log(`EcoEcho API running live on port ${PORT}`));

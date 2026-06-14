@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/network/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final String? userId;
+  const ProfileScreen({super.key, this.userId});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -20,8 +22,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _postsFuture = _fetchUserPosts();
   }
 
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId) {
+      setState(() {
+        _profileFuture = _fetchProfileData();
+        _postsFuture = _fetchUserPosts();
+      });
+    }
+  }
+
   Future<List<dynamic>> _fetchUserPosts() async {
-    final response = await ApiService.get('/api/users/me/posts');
+    final url = widget.userId == null 
+        ? '/api/users/me/posts' 
+        : '/api/users/${widget.userId}/posts';
+    final response = await ApiService.get(url);
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as List<dynamic>;
     } else {
@@ -30,7 +46,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchProfileData() async {
-    final response = await ApiService.get('/api/users/me');
+    final url = widget.userId == null 
+        ? '/api/users/me' 
+        : '/api/users/${widget.userId}';
+    final response = await ApiService.get(url);
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     } else {
@@ -45,9 +64,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFF8FAF5),
         elevation: 0,
-        title: const Text(
-          'My Profile',
-          style: TextStyle(
+        leading: widget.userId != null && Navigator.of(context).canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Color(0xFF154212)),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        title: Text(
+          widget.userId == null ? 'My Profile' : 'Buddy Profile',
+          style: const TextStyle(
             color: Color(0xFF154212),
             fontWeight: FontWeight.bold,
             fontFamily: 'Be Vietnam Pro',
@@ -193,6 +218,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontFamily: 'Inter',
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        // UID display and copy button
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFECEFEA),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFC2C9BB).withValues(alpha: 0.5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'UID: ${data['uid'] != null ? (data['uid'].toString().length > 12 ? "${data['uid'].toString().substring(0, 8)}...${data['uid'].toString().substring(data['uid'].toString().length - 4)}" : data['uid']) : ''}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF42493E),
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                onTap: () {
+                                  if (data['uid'] != null) {
+                                    Clipboard.setData(ClipboardData(text: data['uid'].toString()));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('UID copied to clipboard!'),
+                                        backgroundColor: Color(0xFF154212),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Icon(
+                                  Icons.copy_rounded,
+                                  size: 14,
+                                  color: Color(0xFF154212),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         // City, Province Locator Caption
                         Row(
@@ -246,7 +315,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Keep completing daily challenges to reach the next tier!',
+                          widget.userId == null 
+                            ? 'Keep completing daily challenges to reach the next tier!'
+                            : 'This warrior is contributing to a greener future!',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
@@ -259,11 +330,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Align(
+                Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'My Eco Log',
-                    style: TextStyle(
+                    widget.userId == null ? 'My Eco Log' : 'Eco Log',
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF191C1A),
@@ -280,10 +351,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     } else if (postSnapshot.hasError) {
                       return Text('Error loading posts: ${postSnapshot.error}');
                     } else if (!postSnapshot.hasData || postSnapshot.data!.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: Padding(
-                          padding: EdgeInsets.all(24.0),
-                          child: Text('No green activities logged yet.'),
+                          padding: const EdgeInsets.all(24.0),
+                          child: Text(
+                            widget.userId == null
+                                ? 'No green activities logged yet.'
+                                : 'No green activities logged by this user yet.',
+                          ),
                         ),
                       );
                     }
@@ -303,7 +378,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: _buildProfilePostCard(
-                            timeLocation: 'Just now',
+                            timeLocation: _formatRelativeTime(post['created_at']),
                             tagText: post['tag_text'] ?? 'Activity',
                             content: post['caption'] ?? '',
                             imageUrl: finalImageUrl,
@@ -319,6 +394,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         },
       ),
     );
+  }
+
+  String _formatRelativeTime(String? timestampStr) {
+    if (timestampStr == null || timestampStr.isEmpty) return 'Just now';
+    try {
+      final dateTime = DateTime.parse(timestampStr).toLocal();
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+
+      if (difference.inSeconds < 60) {
+        return 'Just now';
+      } else if (difference.inMinutes < 60) {
+        return '${difference.inMinutes}m ago';
+      } else if (difference.inHours < 24) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inDays < 30) {
+        return '${difference.inDays}d ago';
+      } else {
+        return '${(difference.inDays / 30).floor()}mo ago';
+      }
+    } catch (e) {
+      return 'Just now';
+    }
   }
 
   Widget _buildProfilePostCard({

@@ -233,10 +233,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             );
                           }
                         },
-                        child: const CircleAvatar(
-                          backgroundColor: Color(0xFFECEFEA),
+                        child: CircleAvatar(
+                          backgroundColor: const Color(0xFFECEFEA),
                           radius: 24,
-                          backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+                          backgroundImage: NetworkImage(
+                            _post['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -487,10 +489,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const CircleAvatar(
+                              CircleAvatar(
                                 radius: 18,
-                                backgroundColor: Color(0xFFECEFEA),
-                                backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+                                backgroundColor: const Color(0xFFECEFEA),
+                                backgroundImage: NetworkImage(
+                                  comment['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(

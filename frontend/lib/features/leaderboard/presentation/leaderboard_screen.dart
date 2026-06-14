@@ -14,15 +14,49 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   late Future<List<dynamic>> _leaderboardFuture;
   String _selectedTimeframe = 'all-time';
   String _leaderboardType = 'global';
+  String _selectedGeoFilter = 'all';
+  String? _userCity;
+  String? _userProvince;
+  String? _userRegion;
 
   @override
   void initState() {
     super.initState();
-    _leaderboardFuture = _fetchLeaderboardData();
+    // Initialize future with an empty list first so it's not null before me query returns
+    _leaderboardFuture = Future.value([]);
+    _loadUserProfileAndLeaderboard();
+  }
+
+  Future<void> _loadUserProfileAndLeaderboard() async {
+    try {
+      final meRes = await ApiService.get('/api/users/me');
+      if (meRes.statusCode == 200) {
+        final meData = jsonDecode(meRes.body);
+        _userCity = meData['city'];
+        _userProvince = meData['province'];
+        _userRegion = meData['region'];
+      }
+    } catch (e) {
+      debugPrint('Error loading user profile details: $e');
+    }
+    if (mounted) {
+      setState(() {
+        _leaderboardFuture = _fetchLeaderboardData();
+      });
+    }
   }
 
   Future<List<dynamic>> _fetchLeaderboardData() async {
-    final response = await ApiService.get('/api/users/leaderboard?timeframe=$_selectedTimeframe&type=$_leaderboardType');
+    String url = '/api/users/leaderboard?timeframe=$_selectedTimeframe&type=$_leaderboardType';
+    if (_selectedGeoFilter == 'city' && _userCity != null && _userCity!.isNotEmpty) {
+      url += '&city=${Uri.encodeComponent(_userCity!)}';
+    } else if (_selectedGeoFilter == 'province' && _userProvince != null && _userProvince!.isNotEmpty) {
+      url += '&province=${Uri.encodeComponent(_userProvince!)}';
+    } else if (_selectedGeoFilter == 'region' && _userRegion != null && _userRegion!.isNotEmpty) {
+      url += '&region=${Uri.encodeComponent(_userRegion!)}';
+    }
+
+    final response = await ApiService.get(url);
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as List<dynamic>;
     } else {
@@ -186,6 +220,24 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               ),
             ),
           ),
+          // Geographic Filter Chips
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildGeoChip('All', 'all'),
+                  const SizedBox(width: 8),
+                  _buildGeoChip('City (${_userCity ?? 'Local'})', 'city'),
+                  const SizedBox(width: 8),
+                  _buildGeoChip('Province (${_userProvince ?? 'Local'})', 'province'),
+                  const SizedBox(width: 8),
+                  _buildGeoChip('Region (${_userRegion ?? 'Local'})', 'region'),
+                ],
+              ),
+            ),
+          ),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: _leaderboardFuture,
@@ -328,14 +380,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                     CircleAvatar(
                                       radius: 18,
                                       backgroundColor: const Color(0xFFC2C9BB),
-                                      child: Text(
-                                        initial,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF154212),
-                                          fontSize: 14,
-                                        ),
-                                      ),
+                                      backgroundImage: user['profile_pic_url'] != null
+                                          ? NetworkImage(user['profile_pic_url']!)
+                                          : null,
+                                      child: user['profile_pic_url'] == null
+                                          ? Text(
+                                              initial,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF154212),
+                                                fontSize: 14,
+                                              ),
+                                            )
+                                          : null,
                                     ),
                                   ],
                                 ),
@@ -426,15 +483,20 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               child: CircleAvatar(
                 radius: avatarRadius,
                 backgroundColor: const Color(0xFFE1E3DE),
-                child: Text(
-                  initial,
-                  style: TextStyle(
-                    fontSize: avatarRadius * 0.8,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF154212),
-                    fontFamily: 'Be Vietnam Pro',
-                  ),
-                ),
+                backgroundImage: user['profile_pic_url'] != null
+                    ? NetworkImage(user['profile_pic_url']!)
+                    : null,
+                child: user['profile_pic_url'] == null
+                    ? Text(
+                        initial,
+                        style: TextStyle(
+                          fontSize: avatarRadius * 0.8,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF154212),
+                          fontFamily: 'Be Vietnam Pro',
+                        ),
+                      )
+                    : null,
               ),
             ),
             const SizedBox(height: 10),
@@ -493,6 +555,31 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildGeoChip(String label, String value) {
+    final isSelected = _selectedGeoFilter == value;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : const Color(0xFF42493E),
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: const Color(0xFF154212),
+      backgroundColor: const Color(0xFFECEFEA),
+      onSelected: (selected) {
+        if (selected) {
+          setState(() {
+            _selectedGeoFilter = value;
+            _leaderboardFuture = _fetchLeaderboardData();
+          });
+        }
+      },
     );
   }
 }

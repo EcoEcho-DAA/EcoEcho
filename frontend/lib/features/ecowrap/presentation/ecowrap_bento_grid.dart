@@ -32,7 +32,7 @@ class EcoWrapBentoGrid extends StatelessWidget {
           value: tierName,
           accent: const Color(0xFFFFF8E1),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         _BentoCard(
           icon: Icons.emoji_events,
           iconColor: _primaryGreen,
@@ -40,7 +40,7 @@ class EcoWrapBentoGrid extends StatelessWidget {
           value: 'Top $ranking% Composter',
           accent: const Color(0xFFE8F5E1),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         _BentoCard(
           icon: Icons.share_location,
           iconColor: _secondaryBrown,
@@ -48,7 +48,7 @@ class EcoWrapBentoGrid extends StatelessWidget {
           value: '$postCount logs',
           accent: const Color(0xFFF5EDE8),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           children: [
             Expanded(
@@ -61,7 +61,7 @@ class EcoWrapBentoGrid extends StatelessWidget {
                 compact: true,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
               child: _BentoCard(
                 icon: Icons.bolt,

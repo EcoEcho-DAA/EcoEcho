@@ -13,11 +13,12 @@ class MissionsLoading extends MissionsState {}
 
 class MissionsLoaded extends MissionsState {
   final List<dynamic> missions;
+  final Map<String, dynamic> analytics;
 
-  const MissionsLoaded({required this.missions});
+  const MissionsLoaded({required this.missions, required this.analytics});
 
   @override
-  List<Object?> get props => [missions];
+  List<Object?> get props => [missions, analytics];
 }
 
 class MissionsError extends MissionsState {

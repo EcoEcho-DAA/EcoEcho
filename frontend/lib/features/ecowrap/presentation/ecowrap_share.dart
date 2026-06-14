@@ -78,7 +78,7 @@ class EcoWrapShare {
     required int treeCount,
     required int totalXp,
   }) async {
-    // Show a loading dialog
+    // Show a loading indicator dialog while preparing the image bytes
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -91,7 +91,7 @@ class EcoWrapShare {
               children: [
                 CircularProgressIndicator(color: Color(0xFF386A2B)),
                 SizedBox(height: 16),
-                Text('Posting your EcoWrapped to Community...'),
+                Text('Preparing your EcoWrapped...'),
               ],
             ),
           ),
@@ -99,9 +99,10 @@ class EcoWrapShare {
       ),
     );
 
+    Uint8List? imageBytes;
     try {
       final screenshotController = ScreenshotController();
-      final Uint8List imageBytes = await screenshotController.captureFromWidget(
+      imageBytes = await screenshotController.captureFromWidget(
         EcoWrapShareCard(
           tierName: tierName,
           ranking: ranking,
@@ -112,50 +113,148 @@ class EcoWrapShare {
         pixelRatio: 3.0,
         context: context,
       );
-
-      final captionText =
-          '🌱 My EcoWrapped 2026 Summary!\n'
-          '🏆 Top $ranking% Composter\n'
-          '🌳 $treeCount trees planted\n'
-          '⚡ $totalXp XP earned\n'
-          '🎖️ Reached $tierName tier!';
-
-      // upload using raw bytes which is fully supported on both Web and Mobile
-      final response = await ApiService.uploadImageBytes(
-        '/api/posts', 
-        imageBytes, 
-        'EcoEcho_Wrapped_2026_post.png', 
-        {
-          'caption': captionText,
-          'category_id': '6', // EcoWrapped 2026
-        },
-      );
-
-      if (!context.mounted) return;
-      Navigator.of(context).pop(); // dismiss loading dialog
-
-      if (response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('EcoWrapped shared to feed successfully! +50 XP'),
-            backgroundColor: Color(0xFF154212),
-          ),
-        );
-      } else {
-        final respBody = await response.stream.bytesToString();
-        throw Exception('Failed to post: $respBody');
-      }
     } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context).pop(); // dismiss loading dialog if still showing
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to share in community: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (context.mounted) Navigator.of(context).pop(); // pop loader
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate EcoWrapped card: $e')),
+      );
+      return;
     }
+
+    if (context.mounted) Navigator.of(context).pop(); // pop loader
+
+    if (imageBytes == null) return;
+
+    final initialCaption =
+        '🌱 My EcoWrapped 2026 Summary!\n'
+        '🏆 Top $ranking% Composter\n'
+        '🌳 $treeCount trees planted\n'
+        '⚡ $totalXp XP earned\n'
+        '🎖️ Reached $tierName tier!';
+
+    if (!context.mounted) return;
+
+    // Show the customized caption editing dialog
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        final captionController = TextEditingController(text: initialCaption);
+        bool isSubmitting = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFFF8FAF5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text(
+                'Customize Caption',
+                style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Image Preview
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        imageBytes!,
+                        height: 160,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Caption input
+                    TextField(
+                      controller: captionController,
+                      maxLines: 4,
+                      style: const TextStyle(fontSize: 14, color: Color(0xFF191C1A)),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        hintText: 'Add a comment...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: const Color(0xFFC2C9BB).withOpacity(0.5)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF386A2B), width: 2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF386A2B),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          setDialogState(() => isSubmitting = true);
+
+                          try {
+                            final finalCaption = captionController.text.trim();
+                            final response = await ApiService.uploadImageBytes(
+                              '/api/posts',
+                              imageBytes!,
+                              'EcoEcho_Wrapped_2026_post.png',
+                              {
+                                'caption': finalCaption,
+                                'category_id': '6', // EcoWrapped 2026
+                              },
+                            );
+
+                            if (response.statusCode == 201) {
+                              if (context.mounted) {
+                                Navigator.of(dialogContext).pop(); // pop edit dialog
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('EcoWrapped shared to feed successfully! +50 XP'),
+                                    backgroundColor: Color(0xFF154212),
+                                  ),
+                                );
+                              }
+                            } else {
+                              final respBody = await response.stream.bytesToString();
+                              throw Exception('Failed to post: $respBody');
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to share in community: ${e.toString()}'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                            setDialogState(() => isSubmitting = false);
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text('Share to Feed', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
 

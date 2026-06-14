@@ -145,7 +145,13 @@ app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     // Queries database using clean email lookup
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const userResult = await pool.query(
+      `SELECT u.*, t.tier_name 
+       FROM users u 
+       LEFT JOIN tiers t ON u.current_tier_id = t.id 
+       WHERE u.email = $1`,
+      [email]
+    );
     if (userResult.rows.length === 0) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
@@ -165,7 +171,9 @@ app.post('/api/auth/login', async (req, res) => {
         uid: user.uid,
         username: user.username,
         email: user.email,
-        total_xp: user.total_xp
+        total_xp: user.total_xp,
+        current_tier_id: user.current_tier_id,
+        tier_name: user.tier_name
       }
     });
   } catch (err) {
@@ -177,7 +185,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/users/me', protect, async (req, res) => {
   try {
     const userResult = await pool.query(
-      `SELECT u.uid, u.username, u.email, u.total_xp, u.city, u.province, t.tier_name 
+      `SELECT u.uid, u.username, u.email, u.total_xp, u.city, u.province, u.region, t.tier_name, u.current_tier_id, u.profile_pic_url, u.bio
        FROM users u 
        LEFT JOIN tiers t ON u.current_tier_id = t.id 
        WHERE u.uid = $1`,
@@ -248,15 +256,59 @@ app.put('/api/users/me', protect, async (req, res) => {
   }
 });
 
+// --- PUT /api/users/profile (UPDATE DETAILS AND BIOGRAPHY) ---
+app.put('/api/users/profile', protect, async (req, res) => {
+  try {
+    const { username, city, province, region, bio } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+    await pool.query(
+      `UPDATE users 
+       SET username = $1, city = $2, province = $3, region = $4, bio = $5 
+       WHERE uid = $6`,
+      [username, city || 'Manila', province || 'Metro Manila', region || null, bio, req.userId]
+    );
+    await clearLeaderboardCache();
+    return res.status(200).json({ success: true, message: 'Profile updated successfully.' });
+  } catch (err) {
+    console.error('PUT /api/users/profile error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- POST /api/users/report (SAFETY REPORT ACCOUNT) ---
+app.post('/api/users/report', protect, async (req, res) => {
+  try {
+    const { target_user_uid, reason } = req.body;
+    const reporter_uid = req.userId;
+
+    if (!target_user_uid || !reason) {
+      return res.status(400).json({ error: 'Target user UID and reason are required.' });
+    }
+
+    await pool.query(
+      `INSERT INTO user_reports (target_user_uid, reporter_uid, reason) 
+       VALUES ($1, $2, $3)`,
+      [target_user_uid, reporter_uid, reason]
+    );
+
+    return res.status(201).json({ success: true, message: 'Report logged successfully.' });
+  } catch (err) {
+    console.error('POST /api/users/report error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // 5. GET LEADERBOARD OF TOP USERS (Dynamic with Heap Sort)
 app.get('/api/users/leaderboard', optionalProtect, async (req, res) => {
   try {
-    const { locationType, locationName, timeframe, type } = req.query;
-    // locationType: 'city', 'province', 'region', or null for global
+    const { city, province, region, timeframe, type } = req.query;
+    // city, province, region: optional geographic filters
     // timeframe: 'daily', 'weekly', 'monthly', 'yearly', 'all-time'
     // type: 'friends' or 'global'
 
-    const cacheKey = `leaderboard:${type || 'global'}:${req.userId || 'anon'}:${locationType || 'global'}:${locationName || 'all'}:${timeframe || 'all-time'}`;
+    const cacheKey = `leaderboard:${type || 'global'}:${req.userId || 'anon'}:${city || 'all'}:${province || 'all'}:${region || 'all'}:${timeframe || 'all-time'}`;
     let cached = null;
     if (redisClient.isOpen) {
       cached = await redisClient.get(cacheKey);
@@ -266,7 +318,7 @@ app.get('/api/users/leaderboard', optionalProtect, async (req, res) => {
     }
 
     let query = `
-      SELECT u.uid, u.username, u.city, u.province, t.tier_name, u.total_xp
+      SELECT u.uid, u.username, u.city, u.province, u.region, t.tier_name, u.total_xp, u.profile_pic_url
       FROM users u
       LEFT JOIN tiers t ON u.current_tier_id = t.id
       WHERE 1=1
@@ -287,12 +339,17 @@ app.get('/api/users/leaderboard', optionalProtect, async (req, res) => {
       ))`;
     }
 
-    if (locationType === 'city' && locationName) {
-      params.push(locationName);
+    if (city) {
+      params.push(city);
       query += ` AND u.city = $${params.length}`;
-    } else if (locationType === 'province' && locationName) {
-      params.push(locationName);
+    }
+    if (province) {
+      params.push(province);
       query += ` AND u.province = $${params.length}`;
+    }
+    if (region) {
+      params.push(region);
+      query += ` AND u.region = $${params.length}`;
     }
 
     // For specific timeframes, we will aggregate XP on the fly
@@ -304,7 +361,7 @@ app.get('/api/users/leaderboard', optionalProtect, async (req, res) => {
 
       // We overwrite total_xp with the aggregated timeframe XP
       query = `
-        SELECT u.uid, u.username, u.city, u.province, t.tier_name,
+        SELECT u.uid, u.username, u.city, u.province, u.region, t.tier_name, u.profile_pic_url,
           CAST(COALESCE((
             SELECT SUM(m.xp_reward) 
             FROM user_missions um 
@@ -335,12 +392,17 @@ app.get('/api/users/leaderboard', optionalProtect, async (req, res) => {
         ))`;
       }
 
-      if (locationType === 'city' && locationName) {
-        params.push(locationName);
+      if (city) {
+        params.push(city);
         query += ` AND u.city = $${params.length}`;
-      } else if (locationType === 'province' && locationName) {
-        params.push(locationName);
+      }
+      if (province) {
+        params.push(province);
         query += ` AND u.province = $${params.length}`;
+      }
+      if (region) {
+        params.push(region);
+        query += ` AND u.region = $${params.length}`;
       }
     }
 
@@ -414,7 +476,7 @@ app.post('/api/users/search-buddy', protect, async (req, res) => {
 app.get('/api/users/:uid', protect, async (req, res) => {
   try {
     const userResult = await pool.query(
-      `SELECT u.uid, u.username, u.email, u.total_xp, u.city, u.province, t.tier_name,
+      `SELECT u.uid, u.username, u.email, u.total_xp, u.city, u.province, u.region, t.tier_name, u.current_tier_id, u.profile_pic_url, u.bio,
               f.status AS friendship_status,
               f.user_uid AS friendship_initiator
        FROM users u 
@@ -441,7 +503,7 @@ app.get('/api/users/:uid', protect, async (req, res) => {
 app.get('/api/users/:uid/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -465,7 +527,7 @@ app.get('/api/users/:uid/posts', protect, async (req, res) => {
 app.get('/api/users/:uid/friends', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT u.uid, u.username, u.total_xp, t.tier_name
+      `SELECT u.uid, u.username, u.total_xp, t.tier_name, u.profile_pic_url
        FROM users u
        LEFT JOIN tiers t ON u.current_tier_id = t.id
        WHERE u.uid IN (
@@ -566,7 +628,7 @@ app.post('/api/friends/request', protect, async (req, res) => {
 app.get('/api/friends/requests', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT f.user_uid AS requester_uid, u.username AS requester_name, f.created_at 
+      `SELECT f.user_uid AS requester_uid, u.username AS requester_name, u.profile_pic_url, f.created_at 
        FROM friendships f 
        JOIN users u ON f.user_uid = u.uid 
        WHERE f.friend_uid = $1 AND f.status = 'pending'
@@ -642,7 +704,7 @@ app.post('/api/friends/decline', protect, async (req, res) => {
 app.get('/api/feed/friends', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -772,7 +834,7 @@ app.get('/api/feed/trending', optionalProtect, async (req, res) => {
   try {
     const userId = req.userId || null;
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -793,7 +855,7 @@ app.get('/api/feed/trending', optionalProtect, async (req, res) => {
 // 7b. POST /api/posts -> Creates a new post with direct Supabase Storage integration
 const FLAGGED_TERMS = ['badword1', 'spamlink', 'toxicphrase'];
 app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
-  const { caption, category_id } = req.body;
+  const { caption, category_id, mission_id } = req.body;
   let image_url = null;
 
   try {
@@ -839,15 +901,52 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
       image_url = req.body.image_url || 'https://picsum.photos/400/300';
     }
 
+    let awardedXp = 50; // Baseline post XP
+    if (mission_id) {
+      const parsedMissionId = parseInt(mission_id);
+      const missionRes = await pool.query('SELECT * FROM missions WHERE id = $1', [parsedMissionId]);
+      if (missionRes.rows.length === 0) {
+        return res.status(400).json({ error: 'Mission not found.' });
+      }
+      const mission = missionRes.rows[0];
+
+      // Cross-verify category_id aligns with mission
+      let expectedCategoryId = null;
+      if (parsedMissionId === 1) {
+        expectedCategoryId = 4; // Energy Saving
+      } else if (parsedMissionId === 2) {
+        expectedCategoryId = 4; // Energy Saving (or whichever applies)
+      } else if (parsedMissionId === 3) {
+        expectedCategoryId = 3; // Recycling
+      } else if (parsedMissionId === 4) {
+        expectedCategoryId = 1; // Tree Planting
+      }
+
+      const postCategoryId = category_id ? parseInt(category_id) : null;
+      if (expectedCategoryId !== null && postCategoryId !== expectedCategoryId) {
+        return res.status(400).json({
+          error: `Verification failed: Mission "${mission.title}" requires category ID ${expectedCategoryId}, but post is categorized under ${postCategoryId}.`
+        });
+      }
+
+      // Record completion log inside user_missions
+      await pool.query(
+        'INSERT INTO user_missions (user_uid, mission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.userId, parsedMissionId]
+      );
+
+      awardedXp += mission.xp_reward;
+    }
+
     const newPost = await pool.query(
-      `INSERT INTO posts (user_uid, caption, category_id, image_url)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.userId, textToCheck, category_id || null, image_url]
+      `INSERT INTO posts (user_uid, caption, category_id, image_url, mission_id)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [req.userId, textToCheck, category_id ? parseInt(category_id) : null, image_url, mission_id ? parseInt(mission_id) : null]
     );
 
     await pool.query(
-      `UPDATE users SET total_xp = total_xp + 50 WHERE uid = $1`,
-      [req.userId]
+      `UPDATE users SET total_xp = total_xp + $1 WHERE uid = $2`,
+      [awardedXp, req.userId]
     );
 
     // Clear leaderboard cache so it dynamically updates
@@ -867,11 +966,98 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
   }
 });
 
+// DELETE /api/posts/:id -> Authenticated post deletion with XP deduction reversal
+app.delete('/api/posts/:id', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const postRes = await pool.query('SELECT user_uid FROM posts WHERE id = $1', [postId]);
+    if (postRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found.' });
+    }
+    const post = postRes.rows[0];
+
+    // Authorization check
+    if (post.user_uid !== req.userId) {
+      return res.status(403).json({ error: 'Unauthorized: You are not the author of this post.' });
+    }
+
+    // Revert users.total_xp (clamped at 0) - FLAT 50 XP DEDUCTION
+    await pool.query(
+      `UPDATE users 
+       SET total_xp = GREATEST(0, total_xp - 50) 
+       WHERE uid = $1`,
+      [req.userId]
+    );
+
+    // Delete post record
+    await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
+
+    // Clear leaderboard cache
+    await clearLeaderboardCache();
+
+    return res.status(200).json({ success: true, message: 'Post deleted successfully.' });
+  } catch (err) {
+    console.error('DELETE /api/posts/:id error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/users/profile-picture -> Cloud avatar picture upload and DB save
+app.put('/api/users/profile-picture', protect, upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image file uploaded.' });
+  }
+
+  try {
+    const bucketName = process.env.SUPABASE_BUCKET_NAME || 'post-images';
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(req.file.originalname) || '.jpg';
+    const filename = `avatars/${req.userId}-${uniqueSuffix}${ext}`;
+
+    // Upload buffer to Supabase Cloud Storage
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(filename, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (error) {
+      throw new Error(`Supabase storage error: ${error.message}`);
+    }
+
+    // Public URL
+    const { data: publicUrlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(filename);
+
+    const publicUrl = publicUrlData.publicUrl;
+
+    // Save public URL to DB
+    await pool.query(
+      'UPDATE users SET profile_pic_url = $1 WHERE uid = $2',
+      [publicUrl, req.userId]
+    );
+
+    // Clear leaderboard cache
+    await clearLeaderboardCache();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile picture updated successfully.',
+      profile_pic_url: publicUrl
+    });
+  } catch (err) {
+    console.error('PUT /api/users/profile-picture error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // 7c. GET /api/users/me/posts
 app.get('/api/users/me/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -971,7 +1157,7 @@ app.get('/api/posts/:id/comments', optionalProtect, async (req, res) => {
     const postId = req.params.id;
     const userId = req.userId || null;
     const { rows } = await pool.query(
-      `SELECT pc.id, pc.content, pc.created_at, pc.user_uid, u.username as author_name,
+      `SELECT pc.id, pc.content, pc.created_at, pc.user_uid, u.username as author_name, u.profile_pic_url,
         (SELECT COUNT(*)::int FROM comment_likes cl WHERE cl.comment_id = pc.id) as likes_count,
         (SELECT COUNT(*)::int FROM comment_downvotes cd WHERE cd.comment_id = pc.id) as downvotes_count,
         EXISTS(SELECT 1 FROM comment_likes cl WHERE cl.comment_id = pc.id AND cl.user_uid = $1) as is_liked_by_me,
@@ -1016,15 +1202,35 @@ app.post('/api/posts/:id/comment', protect, async (req, res) => {
   }
 });
 
+app.delete('/api/comments/:commentId', protect, async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    const commentRes = await pool.query('SELECT user_uid FROM post_comments WHERE id = $1', [commentId]);
+    if (commentRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Comment not found.' });
+    }
+    if (commentRes.rows[0].user_uid !== req.userId) {
+      return res.status(403).json({ error: 'Unauthorized: You are not the author of this comment.' });
+    }
+    await pool.query('DELETE FROM post_comments WHERE id = $1', [commentId]);
+    res.status(200).json({ success: true, message: 'Comment deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/posts/:id/comment/:commentId', protect, async (req, res) => {
   try {
-    const { id, commentId } = req.params;
-    const { rowCount } = await pool.query(
-      'DELETE FROM post_comments WHERE id = $1 AND post_id = $2 AND user_uid = $3',
-      [commentId, id, req.userId]
-    );
-    if (rowCount === 0) return res.status(404).json({ error: 'Comment not found or not authorized' });
-    res.status(200).json({ success: true });
+    const { commentId } = req.params;
+    const commentRes = await pool.query('SELECT user_uid FROM post_comments WHERE id = $1', [commentId]);
+    if (commentRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Comment not found.' });
+    }
+    if (commentRes.rows[0].user_uid !== req.userId) {
+      return res.status(403).json({ error: 'Unauthorized.' });
+    }
+    await pool.query('DELETE FROM post_comments WHERE id = $1', [commentId]);
+    res.status(200).json({ success: true, message: 'Comment deleted successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1111,12 +1317,93 @@ app.delete('/api/comments/:id/downvote', protect, async (req, res) => {
 // 8. GET /api/missions/daily
 app.get('/api/missions/daily', protect, async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      'SELECT id, title, description, xp_reward, tier_id FROM missions WHERE is_daily = true'
+    const userId = req.userId;
+
+    // Fetch user analytics
+    const analyticsRes = await pool.query(
+      `SELECT 
+        u.total_xp,
+        COALESCE(t.tier_name, 'Tier 1') as tier_name,
+        
+        -- Week
+        CAST(COALESCE((
+          SELECT SUM(m.xp_reward) 
+          FROM user_missions um 
+          JOIN missions m ON um.mission_id = m.id 
+          WHERE um.user_uid = u.uid AND um.completed_at >= NOW() - INTERVAL '7 days'
+        ), 0) +
+        COALESCE((
+          SELECT SUM(c.xp_weight)
+          FROM posts p
+          JOIN categories c ON p.category_id = c.id
+          WHERE p.user_uid = u.uid AND p.created_at >= NOW() - INTERVAL '7 days'
+        ), 0) AS INTEGER) AS xp_week,
+        
+        -- Month
+        CAST(COALESCE((
+          SELECT SUM(m.xp_reward) 
+          FROM user_missions um 
+          JOIN missions m ON um.mission_id = m.id 
+          WHERE um.user_uid = u.uid AND um.completed_at >= NOW() - INTERVAL '30 days'
+        ), 0) +
+        COALESCE((
+          SELECT SUM(c.xp_weight)
+          FROM posts p
+          JOIN categories c ON p.category_id = c.id
+          WHERE p.user_uid = u.uid AND p.created_at >= NOW() - INTERVAL '30 days'
+        ), 0) AS INTEGER) AS xp_month,
+        
+        -- Year
+        CAST(COALESCE((
+          SELECT SUM(m.xp_reward) 
+          FROM user_missions um 
+          JOIN missions m ON um.mission_id = m.id 
+          WHERE um.user_uid = u.uid AND um.completed_at >= NOW() - INTERVAL '365 days'
+        ), 0) +
+        COALESCE((
+          SELECT SUM(c.xp_weight)
+          FROM posts p
+          JOIN categories c ON p.category_id = c.id
+          WHERE p.user_uid = u.uid AND p.created_at >= NOW() - INTERVAL '365 days'
+        ), 0) AS INTEGER) AS xp_year
+
+      FROM users u
+      LEFT JOIN tiers t ON u.current_tier_id = t.id
+      WHERE u.uid = $1`,
+      [userId]
     );
-    return res.status(200).json(rows);
+
+    const analytics = analyticsRes.rows[0] || {
+      total_xp: 0,
+      tier_name: 'Tier 1',
+      xp_week: 0,
+      xp_month: 0,
+      xp_year: 0
+    };
+
+    // Fetch daily missions with user completions
+    const missionsRes = await pool.query(
+      `SELECT 
+        m.id, 
+        m.title, 
+        m.description, 
+        m.xp_reward, 
+        m.tier_id,
+        um.completed_at
+      FROM missions m
+      LEFT JOIN user_missions um ON m.id = um.mission_id AND um.user_uid = $1
+      WHERE m.is_daily = true
+      ORDER BY m.id`,
+      [userId]
+    );
+
+    res.status(200).json({
+      analytics,
+      missions: missionsRes.rows
+    });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('GET /api/missions/daily error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

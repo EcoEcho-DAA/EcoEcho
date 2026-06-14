@@ -11,8 +11,10 @@ class MissionsBloc extends Bloc<MissionsEvent, MissionsState> {
       try {
         final response = await ApiService.get('/api/missions/daily');
         if (response.statusCode == 200) {
-          final List<dynamic> missions = jsonDecode(response.body);
-          emit(MissionsLoaded(missions: missions));
+          final Map<String, dynamic> data = jsonDecode(response.body);
+          final List<dynamic> missions = data['missions'] ?? [];
+          final Map<String, dynamic> analytics = data['analytics'] ?? {};
+          emit(MissionsLoaded(missions: missions, analytics: analytics));
         } else {
           try {
             final Map<String, dynamic> errorData = jsonDecode(response.body);

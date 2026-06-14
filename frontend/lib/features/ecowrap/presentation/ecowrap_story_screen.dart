@@ -428,19 +428,19 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
         children: [
           Image.asset(
             'assets/images/logo.png',
-            width: 60,
-            height: 60,
+            width: 44,
+            height: 44,
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 8),
           const Text(
             'EcoWrapped 2026 Recap',
             style: TextStyle(
-              fontSize: 25,
+              fontSize: 24,
               fontWeight: FontWeight.w900,
               color: Color(0xFF386A2B),
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 8),
           Expanded(
             child: EcoWrapBentoGrid(
               tierName: _wrappedData?['tier_name'] ?? 'Seed',
@@ -450,7 +450,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
               totalXp: _wrappedData?['total_xp'] ?? 0,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // 1. Share in App Feed button
           SizedBox(
             width: double.infinity,
@@ -507,7 +507,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
         ],
       ),
     ),

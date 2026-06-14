@@ -10,8 +10,33 @@ const redisClient = require('./src/config/redisClient');
 const { getWrappedDataForUser } = require('./src/controllers/wrappedQueriesController');
 const { kmpContains } = require('./src/algorithms/stringMatch');
 const { runLeaderboardHeapSort } = require('./src/algorithms/heapSort');
-const { verifyMissionPrerequisites } = require('./src/algorithms/dfs');
+const { verifyMissionPrerequisites, hasProgressionPath } = require('./src/algorithms/dfs');
 const supabase = require('./src/config/supabaseClient');
+
+/**
+ * Helper function to evaluate and promote a user's tier if they meet the 
+ * XP requirements for a higher tier.
+ */
+async function checkAndPromoteUserTier(userId) {
+  const userRes = await pool.query('SELECT total_xp, current_tier_id FROM users WHERE uid = $1', [userId]);
+  if (userRes.rows.length === 0) return false;
+
+  const { total_xp, current_tier_id } = userRes.rows[0];
+
+  const { rows: allTiers } = await pool.query('SELECT id, required_xp FROM tiers ORDER BY required_xp DESC');
+
+  for (const tier of allTiers) {
+    if (total_xp >= tier.required_xp) {
+      if (tier.id !== current_tier_id) {
+        await pool.query('UPDATE users SET current_tier_id = $1 WHERE uid = $2', [tier.id, userId]);
+        return true;
+      }
+      break;
+    }
+  }
+
+  return false;
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -166,18 +191,104 @@ app.get('/api/users/wrapped', protect, async (req, res) => {
   }
 });
 
-// 5. GET LEADERBOARD OF TOP USERS
+async function clearLeaderboardCache() {
+  if (redisClient && redisClient.isOpen) {
+    try {
+      const keys = await redisClient.keys('leaderboard:*');
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+      }
+    } catch (e) {
+      console.error('Error clearing leaderboard cache:', e);
+    }
+  }
+}
+
+// 5. GET LEADERBOARD OF TOP USERS (Dynamic with Heap Sort)
 app.get('/api/users/leaderboard', async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT u.uid, u.username, u.total_xp, u.city, u.province, t.tier_name
-       FROM users u
-       INNER JOIN tiers t ON u.current_tier_id = t.id
-       ORDER BY u.total_xp DESC
-       LIMIT 10`
-    );
-    return res.status(200).json(rows);
+    const { locationType, locationName, timeframe } = req.query;
+    // locationType: 'city', 'province', 'region', or null for global
+    // timeframe: 'daily', 'weekly', 'monthly', 'yearly', 'all-time'
+
+    const cacheKey = `leaderboard:${locationType || 'global'}:${locationName || 'all'}:${timeframe || 'all-time'}`;
+    let cached = null;
+    if (redisClient.isOpen) {
+      cached = await redisClient.get(cacheKey);
+    }
+    if (cached) {
+      return res.status(200).json(JSON.parse(cached));
+    }
+
+    let query = `
+      SELECT u.uid, u.username, u.city, u.province, t.tier_name, u.total_xp
+      FROM users u
+      LEFT JOIN tiers t ON u.current_tier_id = t.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (locationType === 'city' && locationName) {
+      params.push(locationName);
+      query += ` AND u.city = $${params.length}`;
+    } else if (locationType === 'province' && locationName) {
+      params.push(locationName);
+      query += ` AND u.province = $${params.length}`;
+    }
+
+    // For specific timeframes, we will aggregate XP on the fly
+    if (timeframe && timeframe !== 'all-time') {
+      let interval = '1 year';
+      if (timeframe === 'daily') interval = '1 day';
+      if (timeframe === 'weekly') interval = '1 week';
+      if (timeframe === 'monthly') interval = '1 month';
+
+      // We overwrite total_xp with the aggregated timeframe XP
+      query = `
+        SELECT u.uid, u.username, u.city, u.province, t.tier_name,
+          CAST(COALESCE((
+            SELECT SUM(m.xp_reward) 
+            FROM user_missions um 
+            JOIN missions m ON um.mission_id = m.id 
+            WHERE um.user_uid = u.uid AND um.completed_at >= NOW() - INTERVAL '${interval}'
+          ), 0) +
+          COALESCE((
+            SELECT SUM(c.xp_weight)
+            FROM posts p
+            JOIN categories c ON p.category_id = c.id
+            WHERE p.user_uid = u.uid AND p.created_at >= NOW() - INTERVAL '${interval}'
+          ), 0) AS INTEGER) AS total_xp
+        FROM users u
+        LEFT JOIN tiers t ON u.current_tier_id = t.id
+        WHERE 1=1
+      `;
+      // rebuild params
+      params.length = 0;
+      if (locationType === 'city' && locationName) {
+        params.push(locationName);
+        query += ` AND u.city = $${params.length}`;
+      } else if (locationType === 'province' && locationName) {
+        params.push(locationName);
+        query += ` AND u.province = $${params.length}`;
+      }
+    }
+
+    const { rows } = await pool.query(query, params);
+
+    // Use Heap Sort to establish standings
+    const sorted = runLeaderboardHeapSort(rows);
+
+    // Isolate top 50
+    const top50 = sorted.slice(0, 50);
+
+    // Cache the result for 60 seconds
+    if (redisClient.isOpen) {
+      await redisClient.set(cacheKey, JSON.stringify(top50), { EX: 60 });
+    }
+
+    return res.status(200).json(top50);
   } catch (err) {
+    console.error('Leaderboard error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -190,6 +301,42 @@ app.get('/api/challenges/daily', protect, async (req, res) => {
     );
     return res.status(200).json(rows);
   } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 6b. POST /api/missions/:id/complete
+app.post('/api/missions/:id/complete', protect, async (req, res) => {
+  try {
+    const missionId = parseInt(req.params.id);
+    const userId = req.userId;
+
+    // 1. Insert into user_missions
+    const missionRes = await pool.query('SELECT xp_reward, tier_id FROM missions WHERE id = $1', [missionId]);
+    if (missionRes.rows.length === 0) return res.status(404).json({ error: 'Mission not found' });
+    const { xp_reward, tier_id: targetTierId } = missionRes.rows[0];
+
+    await pool.query(
+      'INSERT INTO user_missions (user_uid, mission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [userId, missionId]
+    );
+
+    // Add XP
+    await pool.query('UPDATE users SET total_xp = total_xp + $1 WHERE uid = $2', [xp_reward, userId]);
+
+    // Clear leaderboard cache so it dynamically updates
+    await clearLeaderboardCache();
+
+    // 2. DFS Verification for Tier Promotion
+    const promoted = await checkAndPromoteUserTier(userId);
+
+    if (promoted) {
+      return res.status(200).json({ message: 'Mission completed! You have been promoted to a new tier!', promoted: true });
+    }
+
+    return res.status(200).json({ message: 'Mission completed!', promoted: false });
+  } catch (err) {
+    console.error('Mission complete error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -275,10 +422,16 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
       [req.userId]
     );
 
+    // Clear leaderboard cache so it dynamically updates
+    await clearLeaderboardCache();
+
+    const promoted = await checkAndPromoteUserTier(req.userId);
+
     res.status(201).json({
       success: true,
       message: 'Post created successfully!',
-      post: newPost.rows[0]
+      post: newPost.rows[0],
+      promoted
     });
   } catch (err) {
     console.error('POST /api/posts error:', err);

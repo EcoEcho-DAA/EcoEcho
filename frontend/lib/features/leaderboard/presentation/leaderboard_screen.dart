@@ -11,6 +11,7 @@ class LeaderboardScreen extends StatefulWidget {
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   late Future<List<dynamic>> _leaderboardFuture;
+  String _selectedTimeframe = 'all-time';
 
   @override
   void initState() {
@@ -19,7 +20,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 
   Future<List<dynamic>> _fetchLeaderboardData() async {
-    final response = await ApiService.get('/api/users/leaderboard');
+    final response = await ApiService.get('/api/users/leaderboard?timeframe=$_selectedTimeframe');
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as List<dynamic>;
     } else {
@@ -43,6 +44,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           ),
         ),
         actions: [
+
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF154212)),
             onPressed: () {
@@ -53,8 +55,60 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           )
         ],
       ),
-      body: FutureBuilder<List<dynamic>>(
-        future: _leaderboardFuture,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFC2C9BB)),
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final buttonWidth = (constraints.maxWidth - 3) / 4;
+                  return ToggleButtons(
+                    constraints: BoxConstraints.expand(width: buttonWidth, height: 36),
+                    isSelected: [
+                      _selectedTimeframe == 'daily',
+                      _selectedTimeframe == 'monthly',
+                      _selectedTimeframe == 'yearly',
+                      _selectedTimeframe == 'all-time',
+                    ],
+                    onPressed: (index) {
+                      final timeframes = ['daily', 'monthly', 'yearly', 'all-time'];
+                      if (_selectedTimeframe != timeframes[index]) {
+                        setState(() {
+                          _selectedTimeframe = timeframes[index];
+                          _leaderboardFuture = _fetchLeaderboardData();
+                        });
+                      }
+                    },
+                    color: const Color(0xFF72796E),
+                    selectedColor: const Color(0xFF154212),
+                    fillColor: const Color(0xFFC2C9BB).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(7),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Be Vietnam Pro',
+                      fontSize: 12,
+                    ),
+                    children: const [
+                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Daily'))),
+                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Monthly'))),
+                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Yearly'))),
+                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('All-Time'))),
+                    ],
+                  );
+                }
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<dynamic>>(
+              future: _leaderboardFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -159,7 +213,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                             final user = listUsers[index];
                             final int rank = index + 4;
                             final String name = user['username'] ?? 'Anonymous';
-                            final int xp = user['total_xp'] ?? 0;
+                            final int xp = (user['total_xp'] is int) ? user['total_xp'] : int.tryParse(user['total_xp']?.toString() ?? '0') ?? 0;
                             final String tier = user['tier_name'] ?? 'Seed';
                             final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
@@ -220,6 +274,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           );
         },
       ),
+    ),
+  ],
+),
     );
   }
 
@@ -235,7 +292,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     }
 
     final String name = user['username'] ?? 'Anonymous';
-    final int xp = user['total_xp'] ?? 0;
+    final int xp = (user['total_xp'] is int) ? user['total_xp'] : int.tryParse(user['total_xp']?.toString() ?? '0') ?? 0;
     final String tier = user['tier_name'] ?? 'Seed';
     final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 

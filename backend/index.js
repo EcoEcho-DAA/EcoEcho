@@ -11,6 +11,7 @@ const { getWrappedDataForUser } = require('./src/controllers/wrappedQueriesContr
 const { kmpContains } = require('./src/algorithms/stringMatch');
 const { runLeaderboardHeapSort } = require('./src/algorithms/heapSort');
 const { verifyMissionPrerequisites } = require('./src/algorithms/dfs');
+const supabase = require('./src/config/supabaseClient');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,18 +21,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
-// Configure Multer Storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, 'public/uploads'));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    // Use .jpg as fallback if extension can't be determined
-    const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, uniqueSuffix + ext);
-  }
-});
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // --- AUTHENTICATION MIDDLEWARE ---
@@ -41,7 +31,6 @@ async function protect(req, res, next) {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, JWT_SECRET);
-      // Stores the validated UUID (uid) into the request object
       req.userId = decoded.id;
       return next();
     } catch (error) {
@@ -70,7 +59,6 @@ app.post('/api/auth/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Matches your exact schema columns: uid, username, email, password_hash, total_xp, city, province
     const newUser = await pool.query(
       `INSERT INTO users (username, email, password_hash, total_xp, city, province) 
        VALUES ($1, $2, $3, $4, $5, $6) 
@@ -91,7 +79,7 @@ app.post('/api/auth/register', async (req, res) => {
       user: newUser.rows[0]
     });
   } catch (err) {
-    console.error('💥 Registration SQL Error:', err.message);
+    console.error('Registration SQL Error:', err.message);
     res.status(400).json({ error: err.message });
   }
 });
@@ -210,22 +198,59 @@ app.get('/api/feed/trending', async (req, res) => {
   }
 });
 
-// 7b. POST /api/posts -> Creates a new post
+// 7b. POST /api/posts -> Creates a new post 
+const FLAGGED_TERMS = ['badword1', 'spamlink', 'toxicphrase'];
 app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
   const { caption, category_id } = req.body;
   let image_url = null;
 
-  if (req.file) {
-    image_url = '/uploads/' + req.file.filename;
-  } else {
-    image_url = req.body.image_url || 'https://picsum.photos/400/300';
-  }
-
   try {
+    const textToCheck = caption || '';
+    for (const term of FLAGGED_TERMS) {
+      if (kmpContains(textToCheck, term)) {
+        return res.status(400).json({
+          error: "Post blocked: Content violates EcoEcho's community guidelines."
+        });
+      }
+    }
+
+    if (req.file) {
+      try {
+        const bucketName = process.env.SUPABASE_BUCKET_NAME || 'post-images';
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(req.file.originalname) || '.jpg';
+        const filename = `${uniqueSuffix}${ext}`;
+
+        // Upload file buffer directly to Supabase Storage
+        const { data, error } = await supabase.storage
+          .from(bucketName)
+          .upload(filename, req.file.buffer, {
+            contentType: req.file.mimetype,
+            upsert: false
+          });
+
+        if (error) {
+          throw new Error(`Supabase storage error: ${error.message}`);
+        }
+
+        // Retrieve the public URL
+        const { data: publicUrlData } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(filename);
+
+        image_url = publicUrlData.publicUrl;
+      } catch (uploadErr) {
+        console.error('Image upload to Supabase failed:', uploadErr);
+        return res.status(500).json({ error: `Image upload failed: ${uploadErr.message}` });
+      }
+    } else {
+      image_url = req.body.image_url || 'https://picsum.photos/400/300';
+    }
+
     const newPost = await pool.query(
       `INSERT INTO posts (user_uid, caption, category_id, image_url)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.userId, caption, category_id, image_url]
+      [req.userId, textToCheck, category_id || null, image_url]
     );
 
     await pool.query(
@@ -233,14 +258,18 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
       [req.userId]
     );
 
-    res.status(201).json(newPost.rows[0]);
+    res.status(201).json({
+      success: true,
+      message: 'Post created successfully!',
+      post: newPost.rows[0]
+    });
   } catch (err) {
     console.error('POST /api/posts error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// 7c. GET /api/users/me/posts -> Fetches logged-in user posts
+// 7c. GET /api/users/me/posts
 app.get('/api/users/me/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -271,40 +300,9 @@ app.get('/api/missions/daily', protect, async (req, res) => {
   }
 });
 
-// --- NEW ROUTE: POST /api/posts (Abuse Protection Gateway) ---
-const FLAGGED_TERMS = ['badword1', 'spamlink', 'toxicphrase'];
-app.post('/api/posts', protect, async (req, res) => {
-  const { caption, category_id, image_url } = req.body;
 
-  try {
-    const textToCheck = caption || '';
-    for (const term of FLAGGED_TERMS) {
-      if (kmpContains(textToCheck, term)) {
-        return res.status(400).json({
-          error: "Post blocked: Content violates EcoEcho's community guidelines."
-        });
-      }
-    }
 
-    const result = await pool.query(
-      `INSERT INTO posts (user_uid, caption, category_id, image_url)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, user_uid, caption, category_id, image_url, created_at`,
-      [req.userId, textToCheck, category_id || null, image_url || null]
-    );
-
-    return res.status(201).json({
-      success: true,
-      message: 'Post created successfully!',
-      post: result.rows[0]
-    });
-  } catch (err) {
-    console.error('Error creating post:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// --- NEW ROUTE: POST /api/posts/:id/vote (Relational Voting & Leaderboard) ---
+// --- POST /api/posts/:id/vote (Relational Voting & Leaderboard) ---
 app.post('/api/posts/:id/vote', protect, async (req, res) => {
   const postId = Number(req.params.id);
   const { vote_direction } = req.body;

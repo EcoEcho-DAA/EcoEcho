@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Added for session management
- 
+import 'package:shared_preferences/shared_preferences.dart';  
 import 'ecowrap_trophy_widget.dart';
 import 'ecowrap_background.dart';
 import 'ecowrap_bento_grid.dart';

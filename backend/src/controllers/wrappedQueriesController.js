@@ -1,65 +1,76 @@
 const pool = require('../config/db');
+const { binarySearch } = require('../algorithms/binarySearch');
 
+/**
+ * Retrieves the EcoWrap summary data for a specific user, calculating their dynamic
+ * performance ranking using a binary search over the global population scores, and
+ * aggregating their posts and tree planting missions directly from database tables.
+ *
+ * Time Complexity:
+ *   - Database query for scores: O(N log N) inside Postgres for sorting, and O(N) map in Node.js.
+ *   - User profile query and aggregations: O(log M + log P) where M is the number of user missions
+ *     and P is the number of posts (using indexes).
+ *   - Binary Search: O(log N) where N is the total number of users.
+ *   Total time complexity: O(N) for Node.js array mapping, dominated by SQL database operations.
+ *
+ * Space Complexity:
+ *   - O(N) auxiliary space in memory to hold the flat scores array of all users.
+ *
+ * @param {string} userId - The authenticated user's uid (UUID).
+ * @returns {Promise<Object|null>} The formatted EcoWrap payload, or null if user not found.
+ */
 async function getWrappedDataForUser(userId) {
-  const query = `
-  WITH user_base AS (
-    SELECT u.total_xp, t.tier_name
-    FROM users u
-    LEFT JOIN tiers t ON t.id = u.current_tier_id
-    WHERE u.uid = $1
-  ),
-  user_trees AS (
-    SELECT COUNT(*)::int AS tree_count
-    FROM user_missions
-    WHERE user_uid = $1
-      AND mission_id = 4
-      AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM NOW())
-  )
+  // 1. Target Profile Evaluation: Fetch current user's total_xp and tier_name
+  const userResult = await pool.query(
+    `SELECT u.total_xp, t.tier_name 
+     FROM users u
+     LEFT JOIN tiers t ON u.current_tier_id = t.id
+     WHERE u.uid = $1`,
+    [userId]
+  );
 
-  SELECT
-    100                                  AS ranking,
-    0                                    AS post_count,
-    (SELECT tree_count FROM user_trees)  AS tree_count,
-    (SELECT tier_name  FROM user_base)   AS tier_name,
-    (SELECT total_xp   FROM user_base)   AS total_xp
-`;
+  if (userResult.rows.length === 0) {
+    return null;
+  }
 
-  const { rows } = await pool.query(query, [userId]);
+  const currentUser = userResult.rows[0];
+  const totalXp = Number(currentUser.total_xp ?? 0);
+  const tierName = currentUser.tier_name ?? 'Seed';
 
-  if (rows.length === 0) return null;
+  // 2. Population Score Extraction: Retrieve and sort total_xp for all registered users
+  const allScoresResult = await pool.query(
+    `SELECT total_xp FROM users ORDER BY total_xp ASC`
+  );
+  const sortedScores = allScoresResult.rows.map(row => Number(row.total_xp));
 
-  const row = rows[0];
+  // 3. Binary Search & Percentile Mapping: Place user score on global distribution
+  const { percentileRank } = binarySearch(sortedScores, totalXp);
+  const ranking = Math.max(1, Math.round(100 - percentileRank));
+
+  // 4. Relational Table Aggregations: Count actual posts by user
+  const postsResult = await pool.query(
+    `SELECT COUNT(*)::int AS post_count FROM posts WHERE user_uid = $1`,
+    [userId]
+  );
+  const postCount = postsResult.rows[0].post_count ?? 0;
+
+  // Count actual tree planting missions completed by user (mission_id = 4)
+  const treesResult = await pool.query(
+    `SELECT COUNT(*)::int AS tree_count 
+     FROM user_missions 
+     WHERE user_uid = $1 AND mission_id = 4`,
+    [userId]
+  );
+  const treeCount = treesResult.rows[0].tree_count ?? 0;
+
+  // 5. Payload Formatting Validation: Return the structured properties for Flutter frontend
   return {
-    ranking:    row.ranking,
-    post_count: row.post_count,
-    tree_count: row.tree_count,
-    tier_name:  row.tier_name,
-    total_xp:   row.total_xp,
+    ranking: ranking,
+    post_count: postCount,
+    tree_count: treeCount,
+    tier_name: tierName,
+    total_xp: totalXp
   };
 }
 
 module.exports = { getWrappedDataForUser };
-
-/*  
-    population_index AS (
-      SELECT
-        id AS user_id,
-        GREATEST(
-          1,
-          CEIL(100.0 * PERCENT_RANK() OVER (ORDER BY total_xp DESC))::int
-        ) AS percentile_rank
-      FROM users
-      WHERE id IN (
-        SELECT DISTINCT user_id
-        FROM posts
-        WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW())
-      )
-    ) 
-      
-    SELECT
-      COALESCE(
-      (SELECT percentile_rank FROM population_index WHERE user_id = $1),
-      100
-      ) AS ranking,    
-      (SELECT post_count  FROM user_posts) AS post_count,
-      */

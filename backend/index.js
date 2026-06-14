@@ -191,12 +191,25 @@ app.get('/api/users/wrapped', protect, async (req, res) => {
   }
 });
 
+async function clearLeaderboardCache() {
+  if (redisClient && redisClient.isOpen) {
+    try {
+      const keys = await redisClient.keys('leaderboard:*');
+      if (keys.length > 0) {
+        await redisClient.del(keys);
+      }
+    } catch (e) {
+      console.error('Error clearing leaderboard cache:', e);
+    }
+  }
+}
+
 // 5. GET LEADERBOARD OF TOP USERS (Dynamic with Heap Sort)
 app.get('/api/users/leaderboard', async (req, res) => {
   try {
     const { locationType, locationName, timeframe } = req.query;
     // locationType: 'city', 'province', 'region', or null for global
-    // timeframe: 'weekly', 'monthly', 'yearly', 'all-time'
+    // timeframe: 'daily', 'weekly', 'monthly', 'yearly', 'all-time'
 
     const cacheKey = `leaderboard:${locationType || 'global'}:${locationName || 'all'}:${timeframe || 'all-time'}`;
     let cached = null;
@@ -226,13 +239,14 @@ app.get('/api/users/leaderboard', async (req, res) => {
     // For specific timeframes, we will aggregate XP on the fly
     if (timeframe && timeframe !== 'all-time') {
       let interval = '1 year';
+      if (timeframe === 'daily') interval = '1 day';
       if (timeframe === 'weekly') interval = '1 week';
       if (timeframe === 'monthly') interval = '1 month';
 
       // We overwrite total_xp with the aggregated timeframe XP
       query = `
         SELECT u.uid, u.username, u.city, u.province, t.tier_name,
-          COALESCE((
+          CAST(COALESCE((
             SELECT SUM(m.xp_reward) 
             FROM user_missions um 
             JOIN missions m ON um.mission_id = m.id 
@@ -243,7 +257,7 @@ app.get('/api/users/leaderboard', async (req, res) => {
             FROM posts p
             JOIN categories c ON p.category_id = c.id
             WHERE p.user_uid = u.uid AND p.created_at >= NOW() - INTERVAL '${interval}'
-          ), 0) AS total_xp
+          ), 0) AS INTEGER) AS total_xp
         FROM users u
         LEFT JOIN tiers t ON u.current_tier_id = t.id
         WHERE 1=1
@@ -309,6 +323,9 @@ app.post('/api/missions/:id/complete', protect, async (req, res) => {
 
     // Add XP
     await pool.query('UPDATE users SET total_xp = total_xp + $1 WHERE uid = $2', [xp_reward, userId]);
+
+    // Clear leaderboard cache so it dynamically updates
+    await clearLeaderboardCache();
 
     // 2. DFS Verification for Tier Promotion
     const promoted = await checkAndPromoteUserTier(userId);
@@ -404,6 +421,9 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
       `UPDATE users SET total_xp = total_xp + 50 WHERE uid = $1`,
       [req.userId]
     );
+
+    // Clear leaderboard cache so it dynamically updates
+    await clearLeaderboardCache();
 
     const promoted = await checkAndPromoteUserTier(req.userId);
 

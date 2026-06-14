@@ -13,6 +13,7 @@ class LeaderboardScreen extends StatefulWidget {
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   late Future<List<dynamic>> _leaderboardFuture;
   String _selectedTimeframe = 'all-time';
+  String _leaderboardType = 'global';
 
   @override
   void initState() {
@@ -21,7 +22,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 
   Future<List<dynamic>> _fetchLeaderboardData() async {
-    final response = await ApiService.get('/api/users/leaderboard?timeframe=$_selectedTimeframe');
+    final response = await ApiService.get('/api/users/leaderboard?timeframe=$_selectedTimeframe&type=$_leaderboardType');
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as List<dynamic>;
     } else {
@@ -58,6 +59,84 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       ),
       body: Column(
         children: [
+          // Leaderboard Type Toggle
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+            child: Container(
+              width: double.infinity,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFECEFEA),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_leaderboardType != 'global') {
+                          setState(() {
+                            _leaderboardType = 'global';
+                            _leaderboardFuture = _fetchLeaderboardData();
+                          });
+                        }
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _leaderboardType == 'global'
+                              ? const Color(0xFF154212)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Global',
+                          style: TextStyle(
+                            color: _leaderboardType == 'global'
+                                ? Colors.white
+                                : const Color(0xFF42493E),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_leaderboardType != 'friends') {
+                          setState(() {
+                            _leaderboardType = 'friends';
+                            _leaderboardFuture = _fetchLeaderboardData();
+                          });
+                        }
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _leaderboardType == 'friends'
+                              ? const Color(0xFF154212)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Friends',
+                          style: TextStyle(
+                            color: _leaderboardType == 'friends'
+                                ? Colors.white
+                                : const Color(0xFF42493E),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Container(

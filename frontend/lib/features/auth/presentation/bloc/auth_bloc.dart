@@ -32,6 +32,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         if (response.statusCode == 201) {
           final responseData = jsonDecode(response.body);
           
+          // Save the token for instant auto-login
+          ApiService.userToken = responseData['token'];
+          
           // Construct a provisional user model to trigger a successful UI redirection state
           final user = User(
             username: signupPayload['first_name'],

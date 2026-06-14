@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/network/api_service.dart';
+import '../../ecowrap/presentation/ecowrap_story_screen.dart';
+import '../../home/presentation/pages/post_detail_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
@@ -14,6 +16,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<Map<String, dynamic>> _profileFuture;
   late Future<List<dynamic>> _postsFuture;
+  List<dynamic> _friendsList = [];
 
   @override
   void initState() {
@@ -51,7 +54,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : '/api/users/${widget.userId}';
     final response = await ApiService.get(url);
     if (response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      final profile = jsonDecode(response.body) as Map<String, dynamic>;
+      
+      final friendsUrl = '/api/users/${profile['uid']}/friends';
+      try {
+        final friendsRes = await ApiService.get(friendsUrl);
+        if (friendsRes.statusCode == 200) {
+          _friendsList = jsonDecode(friendsRes.body) as List<dynamic>;
+        }
+      } catch (e) {
+        debugPrint('Error fetching friends: $e');
+      }
+
+      return profile;
     } else {
       throw Exception('Failed to load profile details (Code: ${response.statusCode})');
     }
@@ -266,20 +281,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // City, Province Locator Caption
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.location_on, size: 16, color: Color(0xFF79564B)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$city, $province',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF79564B),
-                                fontWeight: FontWeight.w600,
+                           children: [
+                             const Icon(Icons.location_on, size: 16, color: Color(0xFF79564B)),
+                             const SizedBox(width: 4),
+                             Text(
+                               '$city, $province',
+                               style: const TextStyle(
+                                 fontSize: 14,
+                                 color: Color(0xFF79564B),
+                                 fontWeight: FontWeight.w600,
+                               ),
+                             ),
+                           ],
+                         ),
+                          if (widget.userId == null) ...[
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: () => _showEditProfileDialog(data),
+                              icon: const Icon(Icons.edit, size: 14, color: Color(0xFF154212)),
+                              label: const Text(
+                                'Edit Profile',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF154212), fontWeight: FontWeight.bold),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0xFF154212)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               ),
                             ),
+                          ] else ...[
+                            _buildFriendshipButton(data),
                           ],
-                        ),
-                        const SizedBox(height: 32),
+                         const SizedBox(height: 32),
                         // Progress Section
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -330,6 +363,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                _buildEcoWrapBanner(data),
+                const SizedBox(height: 24),
+                _buildFriendsListSection(),
+                const SizedBox(height: 24),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -377,11 +414,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
-                          child: _buildProfilePostCard(
-                            timeLocation: _formatRelativeTime(post['created_at']),
-                            tagText: post['tag_text'] ?? 'Activity',
-                            content: post['caption'] ?? '',
-                            imageUrl: finalImageUrl,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PostDetailScreen(postData: post),
+                                ),
+                              );
+                            },
+                            child: _buildProfilePostCard(
+                              timeLocation: _formatRelativeTime(post['created_at']),
+                              tagText: post['tag_text'] ?? 'Activity',
+                              content: post['caption'] ?? '',
+                              imageUrl: finalImageUrl,
+                            ),
                           ),
                         );
                       }).toList(),
@@ -392,6 +439,115 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showEditProfileDialog(Map<String, dynamic> currentData) {
+    final usernameController = TextEditingController(text: currentData['username']);
+    final cityController = TextEditingController(text: currentData['city']);
+    final provinceController = TextEditingController(text: currentData['province']);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold, fontFamily: 'Be Vietnam Pro'),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: usernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Username',
+                  labelStyle: TextStyle(color: Color(0xFF154212)),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: cityController,
+                decoration: const InputDecoration(
+                  labelText: 'City',
+                  labelStyle: TextStyle(color: Color(0xFF154212)),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: provinceController,
+                decoration: const InputDecoration(
+                  labelText: 'Province',
+                  labelStyle: TextStyle(color: Color(0xFF154212)),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(dialogContext),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF154212),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Save'),
+            onPressed: () async {
+              final newUsername = usernameController.text.trim();
+              final newCity = cityController.text.trim();
+              final newProvince = provinceController.text.trim();
+
+              if (newUsername.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Username cannot be empty.')),
+                );
+                return;
+              }
+
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(dialogContext);
+
+              try {
+                final response = await ApiService.put('/api/users/me', {
+                  'username': newUsername,
+                  'city': newCity,
+                  'province': newProvince,
+                });
+
+                if (response.statusCode == 200) {
+                  navigator.pop();
+                  setState(() {
+                    _profileFuture = _fetchProfileData();
+                  });
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Profile updated successfully!'),
+                      backgroundColor: Color(0xFF154212),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                } else {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Failed to update profile (Code: ${response.statusCode})')),
+                  );
+                }
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Error updating profile: $e')),
+                );
+              }
+            },
+          ),
+        ],
       ),
     );
   }
@@ -486,6 +642,385 @@ class _ProfileScreenState extends State<ProfileScreen> {
             )
         ],
       ),
+    );
+  }
+
+  Widget _buildFriendshipButton(Map<String, dynamic> data) {
+    final status = data['friendship_status'];
+    final initiator = data['friendship_initiator'];
+    final otherUid = data['uid'];
+
+    if (status == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12.0),
+        child: ElevatedButton.icon(
+          onPressed: () => _sendFriendRequest(otherUid),
+          icon: const Icon(Icons.person_add, size: 16, color: Colors.white),
+          label: const Text(
+            'Add Friend',
+            style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF154212),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+        ),
+      );
+    } else if (status == 'pending') {
+      if (initiator == otherUid) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 12.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => _acceptFriendRequest(otherUid),
+                icon: const Icon(Icons.check, size: 16, color: Colors.white),
+                label: const Text(
+                  'Accept',
+                  style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF154212),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: () => _declineFriendRequest(otherUid),
+                icon: const Icon(Icons.close, size: 16, color: Colors.white),
+                label: const Text(
+                  'Decline',
+                  style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFBA1A1A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              ),
+            ],
+          ),
+        );
+      } else {
+        return Padding(
+          padding: const EdgeInsets.only(top: 12.0),
+          child: OutlinedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.hourglass_empty, size: 16, color: Color(0xFF72796E)),
+            label: const Text(
+              'Request Sent',
+              style: TextStyle(fontSize: 14, color: Color(0xFF72796E), fontWeight: FontWeight.bold),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFC2C9BB)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+          ),
+        );
+      }
+    } else if (status == 'accepted') {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE7E9E4),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF154212).withOpacity(0.3)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.people, size: 16, color: Color(0xFF154212)),
+              SizedBox(width: 8),
+              Text(
+                'Friends',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF154212),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Future<void> _sendFriendRequest(String otherUid) async {
+    try {
+      final response = await ApiService.post('/api/friends/request', {'friendUid': otherUid});
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        setState(() {
+          _profileFuture = _fetchProfileData();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Friend request sent!'),
+            backgroundColor: Color(0xFF154212),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        final err = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err['error'] ?? 'Failed to send request'),
+            backgroundColor: const Color(0xFFBA1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: const Color(0xFFBA1A1A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _acceptFriendRequest(String otherUid) async {
+    try {
+      final response = await ApiService.post('/api/friends/accept', {'requesterUid': otherUid});
+      if (response.statusCode == 200) {
+        setState(() {
+          _profileFuture = _fetchProfileData();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Friend request accepted!'),
+            backgroundColor: Color(0xFF154212),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        final err = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err['error'] ?? 'Failed to accept request'),
+            backgroundColor: const Color(0xFFBA1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: const Color(0xFFBA1A1A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _declineFriendRequest(String otherUid) async {
+    try {
+      final response = await ApiService.post('/api/friends/decline', {'requesterUid': otherUid});
+      if (response.statusCode == 200) {
+        setState(() {
+          _profileFuture = _fetchProfileData();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Friend request declined.'),
+            backgroundColor: Color(0xFFBA1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        final err = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err['error'] ?? 'Failed to decline request'),
+            backgroundColor: const Color(0xFFBA1A1A),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: const Color(0xFFBA1A1A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Widget _buildEcoWrapBanner(Map<String, dynamic> data) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2C11), Color(0xFF1B4D1E), Color(0xFF101B11)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: const Color(0xFF9DD090).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF9DD090), width: 1.5),
+              ),
+              child: const Icon(Icons.stars_rounded, color: Color(0xFF9DD090), size: 32),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'EcoWrapped 2026',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Be Vietnam Pro',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Explore impact milestones and dynamic standing recap!',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EcoWrapStoryScreen(userId: data['uid']),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                shape: const CircleBorder(),
+                padding: const EdgeInsets.all(12),
+                backgroundColor: const Color(0xFF154212),
+                foregroundColor: Colors.white,
+              ),
+              child: const Icon(Icons.play_arrow_rounded, size: 24),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFriendsListSection() {
+    if (_friendsList.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            widget.userId == null ? 'My Friends (${_friendsList.length})' : 'Friends (${_friendsList.length})',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF191C1A),
+              fontFamily: 'Be Vietnam Pro',
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 90,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _friendsList.length,
+            itemBuilder: (context, index) {
+              final friend = _friendsList[index];
+              final String name = friend['username'] ?? 'Eco Warrior';
+              final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'E';
+              final String friendUid = friend['uid']?.toString() ?? '';
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: GestureDetector(
+                  onTap: () {
+                    if (friendUid.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProfileScreen(userId: friendUid),
+                        ),
+                      );
+                    }
+                  },
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: const Color(0xFFE1E3DE),
+                        child: CircleAvatar(
+                          radius: 25,
+                          backgroundColor: const Color(0xFF154212),
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontFamily: 'Be Vietnam Pro',
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: 64,
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF42493E),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

@@ -17,18 +17,31 @@ const supabase = require('./src/config/supabaseClient');
  * Helper function to evaluate and promote a user's tier if they meet the 
  * XP requirements for a higher tier.
  */
+async function createNotification(userUid, senderUid, type, title, message) {
+  try {
+    await pool.query(
+      `INSERT INTO notifications (user_uid, sender_uid, type, title, message)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userUid, senderUid || null, type, title, message]
+    );
+  } catch (err) {
+    console.error('Error creating notification:', err.message);
+  }
+}
+
 async function checkAndPromoteUserTier(userId) {
   const userRes = await pool.query('SELECT total_xp, current_tier_id FROM users WHERE uid = $1', [userId]);
   if (userRes.rows.length === 0) return false;
 
   const { total_xp, current_tier_id } = userRes.rows[0];
 
-  const { rows: allTiers } = await pool.query('SELECT id, required_xp FROM tiers ORDER BY required_xp DESC');
+  const { rows: allTiers } = await pool.query('SELECT id, required_xp, tier_name FROM tiers ORDER BY required_xp DESC');
 
   for (const tier of allTiers) {
     if (total_xp >= tier.required_xp) {
       if (tier.id !== current_tier_id) {
         await pool.query('UPDATE users SET current_tier_id = $1 WHERE uid = $2', [tier.id, userId]);
+        await createNotification(userId, null, 'promotion', 'Tier Promoted!', `Congratulations! You have been promoted to the ${tier.tier_name} tier.`);
         return true;
       }
       break;
@@ -112,10 +125,14 @@ app.post('/api/auth/register', async (req, res) => {
       ]
     );
 
+    const createdUser = newUser.rows[0];
+    const token = jwt.sign({ id: createdUser.uid }, JWT_SECRET, { expiresIn: '30d' });
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully in the cloud!',
-      user: newUser.rows[0]
+      token,
+      user: createdUser
     });
   } catch (err) {
     console.error('Registration SQL Error:', err.message);
@@ -201,14 +218,45 @@ app.get('/api/users/me/posts', protect, async (req, res) => {
   }
 });
 
-// 5. GET LEADERBOARD OF TOP USERS (Dynamic with Heap Sort)
-app.get('/api/users/leaderboard', async (req, res) => {
+// --- UPDATE LOGGED-IN USER PROFILE ---
+app.put('/api/users/me', protect, async (req, res) => {
   try {
-    const { locationType, locationName, timeframe } = req.query;
+    const { username, city, province } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+    
+    const result = await pool.query(
+      `UPDATE users 
+       SET username = $1, city = $2, province = $3 
+       WHERE uid = $4 
+       RETURNING uid, username, email, total_xp, city, province`,
+      [username, city || 'Manila', province || 'Metro Manila', req.userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+    
+    return res.status(200).json({
+      message: 'Profile updated successfully!',
+      user: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Update profile error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. GET LEADERBOARD OF TOP USERS (Dynamic with Heap Sort)
+app.get('/api/users/leaderboard', optionalProtect, async (req, res) => {
+  try {
+    const { locationType, locationName, timeframe, type } = req.query;
     // locationType: 'city', 'province', 'region', or null for global
     // timeframe: 'daily', 'weekly', 'monthly', 'yearly', 'all-time'
+    // type: 'friends' or 'global'
 
-    const cacheKey = `leaderboard:${locationType || 'global'}:${locationName || 'all'}:${timeframe || 'all-time'}`;
+    const cacheKey = `leaderboard:${type || 'global'}:${req.userId || 'anon'}:${locationType || 'global'}:${locationName || 'all'}:${timeframe || 'all-time'}`;
     let cached = null;
     if (redisClient.isOpen) {
       cached = await redisClient.get(cacheKey);
@@ -224,6 +272,20 @@ app.get('/api/users/leaderboard', async (req, res) => {
       WHERE 1=1
     `;
     const params = [];
+
+    if (type === 'friends') {
+      if (!req.userId) {
+        return res.status(401).json({ error: 'Authentication required for friends leaderboard.' });
+      }
+      params.push(req.userId);
+      query += ` AND (u.uid IN (
+        SELECT friend_uid FROM friendships WHERE user_uid = $${params.length} AND status = 'accepted'
+        UNION
+        SELECT user_uid FROM friendships WHERE friend_uid = $${params.length} AND status = 'accepted'
+        UNION
+        SELECT $${params.length}::uuid
+      ))`;
+    }
 
     if (locationType === 'city' && locationName) {
       params.push(locationName);
@@ -261,6 +323,18 @@ app.get('/api/users/leaderboard', async (req, res) => {
       `;
       // rebuild params
       params.length = 0;
+
+      if (type === 'friends') {
+        params.push(req.userId);
+        query += ` AND (u.uid IN (
+          SELECT friend_uid FROM friendships WHERE user_uid = $${params.length} AND status = 'accepted'
+          UNION
+          SELECT user_uid FROM friendships WHERE friend_uid = $${params.length} AND status = 'accepted'
+          UNION
+          SELECT $${params.length}::uuid
+        ))`;
+      }
+
       if (locationType === 'city' && locationName) {
         params.push(locationName);
         query += ` AND u.city = $${params.length}`;
@@ -340,11 +414,17 @@ app.post('/api/users/search-buddy', protect, async (req, res) => {
 app.get('/api/users/:uid', protect, async (req, res) => {
   try {
     const userResult = await pool.query(
-      `SELECT u.uid, u.username, u.email, u.total_xp, u.city, u.province, t.tier_name 
+      `SELECT u.uid, u.username, u.email, u.total_xp, u.city, u.province, t.tier_name,
+              f.status AS friendship_status,
+              f.user_uid AS friendship_initiator
        FROM users u 
        LEFT JOIN tiers t ON u.current_tier_id = t.id 
+       LEFT JOIN friendships f ON (
+         (f.user_uid = $2 AND f.friend_uid = u.uid) OR
+         (f.user_uid = u.uid AND f.friend_uid = $2)
+       )
        WHERE u.uid = $1`,
-      [req.params.uid]
+      [req.params.uid, req.userId]
     );
 
     if (userResult.rows.length === 0) {
@@ -377,6 +457,251 @@ app.get('/api/users/:uid/posts', protect, async (req, res) => {
     return res.status(200).json(rows);
   } catch (err) {
     console.error('GET /api/users/:uid/posts error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- GET FRIENDS OF A SPECIFIC USER ---
+app.get('/api/users/:uid/friends', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.uid, u.username, u.total_xp, t.tier_name
+       FROM users u
+       LEFT JOIN tiers t ON u.current_tier_id = t.id
+       WHERE u.uid IN (
+         SELECT friend_uid FROM friendships WHERE user_uid = $1 AND status = 'accepted'
+         UNION
+         SELECT user_uid FROM friendships WHERE friend_uid = $1 AND status = 'accepted'
+       )`,
+      [req.params.uid]
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    console.error('GET /api/users/:uid/friends error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- GET ECOWRAP DATA OF A SPECIFIC USER ---
+app.get('/api/users/:uid/wrapped', protect, async (req, res) => {
+  try {
+    const data = await getWrappedDataForUser(req.params.uid);
+    if (!data) {
+      return res.status(404).json({ message: 'No wrapped data found for this user.' });
+    }
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('[GET /api/users/:uid/wrapped]', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- FRIEND SYSTEM ENDPOINTS ---
+
+// Send Friend Request
+app.post('/api/friends/request', protect, async (req, res) => {
+  try {
+    const { friendUid } = req.body;
+    if (!friendUid) {
+      return res.status(400).json({ error: 'friendUid is required' });
+    }
+    if (friendUid === req.userId) {
+      return res.status(400).json({ error: 'Cannot add yourself as a friend' });
+    }
+
+    // Check if user exists
+    const userRes = await pool.query('SELECT username FROM users WHERE uid = $1', [friendUid]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if friendship already exists
+    const friendCheck = await pool.query(
+      `SELECT * FROM friendships 
+       WHERE (user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1)`,
+      [req.userId, friendUid]
+    );
+
+    if (friendCheck.rows.length > 0) {
+      const friendship = friendCheck.rows[0];
+      if (friendship.status === 'accepted') {
+        return res.status(400).json({ error: 'You are already friends' });
+      }
+      if (friendship.status === 'pending') {
+        if (friendship.user_uid === req.userId) {
+          return res.status(400).json({ error: 'Friend request already sent' });
+        } else {
+          return res.status(400).json({ error: 'You have a pending friend request from this user' });
+        }
+      }
+      // If status is declined, update to pending with new initiator
+      await pool.query(
+        `UPDATE friendships 
+         SET status = 'pending', user_uid = $1, friend_uid = $2, created_at = NOW()
+         WHERE (user_uid = $1 AND friend_uid = $2) OR (user_uid = $2 AND friend_uid = $1)`,
+        [req.userId, friendUid]
+      );
+    } else {
+      // Create new request
+      await pool.query(
+        `INSERT INTO friendships (user_uid, friend_uid, status)
+         VALUES ($1, $2, 'pending')`,
+        [req.userId, friendUid]
+      );
+    }
+
+    // Trigger notification
+    const senderRes = await pool.query('SELECT username FROM users WHERE uid = $1', [req.userId]);
+    const senderName = senderRes.rows[0]?.username || 'Eco Warrior';
+    await createNotification(friendUid, req.userId, 'friend_request', 'Friend Request', `${senderName} sent you a friend request.`);
+
+    return res.status(201).json({ message: 'Friend request sent successfully!' });
+  } catch (err) {
+    console.error('Send friend request error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Get Pending Friend Requests Received
+app.get('/api/friends/requests', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT f.user_uid AS requester_uid, u.username AS requester_name, f.created_at 
+       FROM friendships f 
+       JOIN users u ON f.user_uid = u.uid 
+       WHERE f.friend_uid = $1 AND f.status = 'pending'
+       ORDER BY f.created_at DESC`,
+      [req.userId]
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    console.error('Get friend requests error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Accept Friend Request
+app.post('/api/friends/accept', protect, async (req, res) => {
+  try {
+    const { requesterUid } = req.body;
+    if (!requesterUid) {
+      return res.status(400).json({ error: 'requesterUid is required' });
+    }
+
+    const result = await pool.query(
+      `UPDATE friendships 
+       SET status = 'accepted' 
+       WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+       RETURNING *`,
+      [requesterUid, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'No pending friend request found from this user.' });
+    }
+
+    // Trigger notification to the requester
+    const acceptorRes = await pool.query('SELECT username FROM users WHERE uid = $1', [req.userId]);
+    const acceptorName = acceptorRes.rows[0]?.username || 'Eco Warrior';
+    await createNotification(requesterUid, req.userId, 'friend_accepted', 'Friend Request Accepted', `${acceptorName} accepted your friend request.`);
+
+    return res.status(200).json({ message: 'Friend request accepted successfully!' });
+  } catch (err) {
+    console.error('Accept friend request error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Decline Friend Request (Delete row)
+app.post('/api/friends/decline', protect, async (req, res) => {
+  try {
+    const { requesterUid } = req.body;
+    if (!requesterUid) {
+      return res.status(400).json({ error: 'requesterUid is required' });
+    }
+
+    const result = await pool.query(
+      `DELETE FROM friendships 
+       WHERE user_uid = $1 AND friend_uid = $2 AND status = 'pending'
+       RETURNING *`,
+      [requesterUid, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'No pending friend request found from this user.' });
+    }
+
+    return res.status(200).json({ message: 'Friend request declined successfully!' });
+  } catch (err) {
+    console.error('Decline friend request error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// GET Friends Feed
+app.get('/api/feed/friends', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me,
+        EXISTS(SELECT 1 FROM post_downvotes pd WHERE pd.post_id = p.id AND pd.user_uid = $1) as is_downvoted_by_me
+       FROM posts p
+       INNER JOIN users u ON p.user_uid = u.uid
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.user_uid IN (
+         SELECT friend_uid FROM friendships WHERE user_uid = $1 AND status = 'accepted'
+         UNION
+         SELECT user_uid FROM friendships WHERE friend_uid = $1 AND status = 'accepted'
+       )
+       ORDER BY p.created_at DESC`,
+      [req.userId]
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    console.error('Get friends feed error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- NOTIFICATION SYSTEM ENDPOINTS ---
+
+// Get Notifications
+app.get('/api/notifications', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT n.id, n.type, n.title, n.message, n.is_read, n.created_at, n.sender_uid, u.username as sender_name
+       FROM notifications n
+       LEFT JOIN users u ON n.sender_uid = u.uid
+       WHERE n.user_uid = $1
+       ORDER BY n.created_at DESC`,
+      [req.userId]
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    console.error('Get notifications error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark Notification as Read
+app.post('/api/notifications/:id/read', protect, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE notifications 
+       SET is_read = true 
+       WHERE id = $1 AND user_uid = $2 
+       RETURNING *`,
+      [req.params.id, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    return res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('Mark notification as read error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -575,10 +900,23 @@ app.post('/api/posts/:id/like', protect, async (req, res) => {
       'DELETE FROM post_downvotes WHERE post_id = $1 AND user_uid = $2',
       [postId, req.userId]
     );
-    await pool.query(
-      'INSERT INTO post_likes (post_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+    const likeRes = await pool.query(
+      'INSERT INTO post_likes (post_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id',
       [postId, req.userId]
     );
+    
+    // Send notification if a new like was registered
+    if (likeRes.rows.length > 0) {
+      const postRes = await pool.query('SELECT user_uid FROM posts WHERE id = $1', [postId]);
+      if (postRes.rows.length > 0) {
+        const authorUid = postRes.rows[0].user_uid;
+        if (authorUid !== req.userId) {
+          const userRes = await pool.query('SELECT username FROM users WHERE uid = $1', [req.userId]);
+          const senderName = userRes.rows[0]?.username || 'Eco Warrior';
+          await createNotification(authorUid, req.userId, 'like', 'New Like', `${senderName} liked your post.`);
+        }
+      }
+    }
     res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -660,6 +998,18 @@ app.post('/api/posts/:id/comment', protect, async (req, res) => {
       'INSERT INTO post_comments (post_id, user_uid, content) VALUES ($1, $2, $3) RETURNING *',
       [postId, req.userId, content]
     );
+
+    // Send notification to post owner
+    const postRes = await pool.query('SELECT user_uid FROM posts WHERE id = $1', [postId]);
+    if (postRes.rows.length > 0) {
+      const authorUid = postRes.rows[0].user_uid;
+      if (authorUid !== req.userId) {
+        const userRes = await pool.query('SELECT username FROM users WHERE uid = $1', [req.userId]);
+        const senderName = userRes.rows[0]?.username || 'Eco Warrior';
+        await createNotification(authorUid, req.userId, 'comment', 'New Comment', `${senderName} commented on your post.`);
+      }
+    }
+
     res.status(201).json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -784,6 +1134,25 @@ app.get('/health', async (_req, res) => {
 
 async function start() {
   await redisClient.safeConnect();
+
+  // Ensure notifications table exists
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_uid UUID NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+        sender_uid UUID REFERENCES users(uid) ON DELETE SET NULL,
+        type VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        is_read BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log('[INIT] Verified or created notifications table.');
+  } catch (err) {
+    console.log('[INIT WARNING] notifications check skipped:', err.message);
+  }
 
   // Ensure post_reports table exists
   try {

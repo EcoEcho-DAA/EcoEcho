@@ -6,8 +6,10 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/network/api_service.dart';
 import '../../ecowrap/presentation/ecowrap_story_screen.dart';
 import '../../home/presentation/pages/post_detail_screen.dart';
-import '../../home/presentation/pages/camera_screen.dart';
 import '../../home/presentation/pages/preview_screen.dart';
+import '../../home/presentation/pages/camera_screen.dart';
+import 'dart:typed_data';
+import 'settings_view.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
@@ -34,9 +36,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF154212)),
               title: const Text('Take Photo'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(sheetContext);
-                _pickImage(context, ImageSource.camera, missionId, categoryId, isProfilePicMode, onSuccess);
+                final cameras = await availableCameras();
+                if (!context.mounted) return;
+                final uploadSuccess = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CameraScreen(
+                      cameras: cameras,
+                      missionId: missionId,
+                      categoryId: categoryId,
+                      isProfilePicMode: isProfilePicMode,
+                    ),
+                  ),
+                );
+                if (uploadSuccess == true && onSuccess != null) {
+                  onSuccess();
+                }
               },
             ),
             ListTile(
@@ -66,13 +83,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final XFile? image = await picker.pickImage(source: source);
       if (image == null) return;
 
+      final Uint8List bytes = await image.readAsBytes();
+
       if (!context.mounted) return;
 
       final uploadSuccess = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => PreviewScreen(
-            imagePath: image.path,
+            imageBytes: bytes,
             missionId: missionId,
             categoryId: categoryId,
             isProfilePicMode: isProfilePicMode,
@@ -272,6 +291,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               tooltip: 'Report Account',
               onPressed: _showReportAccountDialog,
             ),
+          if (widget.userId == null)
+            FutureBuilder<Map<String, dynamic>>(
+              future: _profileFuture,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return IconButton(
+                    icon: const Icon(Icons.settings, color: Color(0xFF154212)),
+                    tooltip: 'Settings',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SettingsView(userProfile: snapshot.data!),
+                        ),
+                      );
+                    },
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF154212)),
             onPressed: () {
@@ -327,7 +367,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           final data = snapshot.data!;
           final username = data['username'] ?? 'Eco Warrior';
-          final email = data['email'] ?? '';
           final city = data['city'] ?? 'Manila';
           final province = data['province'] ?? 'Metro Manila';
           final xp = data['total_xp'] ?? 0;
@@ -434,16 +473,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF191C1A),
                             fontFamily: 'Be Vietnam Pro',
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        // Email address
-                        Text(
-                          email,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF72796E),
-                            fontFamily: 'Inter',
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -932,7 +961,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onPressed: () => _sendFriendRequest(otherUid),
           icon: const Icon(Icons.person_add, size: 16, color: Colors.white),
           label: const Text(
-            'Add Friend',
+            'Add Buddy',
             style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
           ),
           style: ElevatedButton.styleFrom(
@@ -1013,7 +1042,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Icon(Icons.people, size: 16, color: Color(0xFF154212)),
               SizedBox(width: 8),
               Text(
-                'Friends',
+                'Buddies',
                 style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF154212),
@@ -1038,7 +1067,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Friend request sent!'),
+            content: Text('Buddy request sent!'),
             backgroundColor: Color(0xFF154212),
             behavior: SnackBarBehavior.floating,
           ),
@@ -1073,7 +1102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Friend request accepted!'),
+            content: Text('Buddy request accepted!'),
             backgroundColor: Color(0xFF154212),
             behavior: SnackBarBehavior.floating,
           ),
@@ -1108,7 +1137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Friend request declined.'),
+            content: Text('Buddy request declined.'),
             backgroundColor: Color(0xFFBA1A1A),
             behavior: SnackBarBehavior.floating,
           ),
@@ -1221,7 +1250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            widget.userId == null ? 'My Friends (${_friendsList.length})' : 'Friends (${_friendsList.length})',
+            widget.userId == null ? 'My Buddies (${_friendsList.length})' : 'Buddies (${_friendsList.length})',
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,

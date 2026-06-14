@@ -99,7 +99,7 @@ class EcoWrapShare {
       ),
     );
 
-    Uint8List? imageBytes;
+    Uint8List imageBytes;
     try {
       final screenshotController = ScreenshotController();
       imageBytes = await screenshotController.captureFromWidget(
@@ -122,8 +122,6 @@ class EcoWrapShare {
     }
 
     if (context.mounted) Navigator.of(context).pop(); // pop loader
-
-    if (imageBytes == null) return;
 
     final initialCaption =
         '🌱 My EcoWrapped 2026 Summary!\n'
@@ -159,7 +157,7 @@ class EcoWrapShare {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.memory(
-                        imageBytes!,
+                        imageBytes,
                         height: 160,
                         fit: BoxFit.contain,
                       ),
@@ -207,7 +205,7 @@ class EcoWrapShare {
                             final finalCaption = captionController.text.trim();
                             final response = await ApiService.uploadImageBytes(
                               '/api/posts',
-                              imageBytes!,
+                              imageBytes,
                               'EcoEcho_Wrapped_2026_post.png',
                               {
                                 'caption': finalCaption,

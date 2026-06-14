@@ -1,16 +1,16 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../../core/network/api_service.dart';
 
 class PreviewScreen extends StatefulWidget {
-  final String imagePath;
+  final Uint8List imageBytes;
   final int? missionId;
   final int? categoryId;
   final bool isProfilePicMode;
 
   const PreviewScreen({
     Key? key,
-    required this.imagePath,
+    required this.imageBytes,
     this.missionId,
     this.categoryId,
     this.isProfilePicMode = false,
@@ -67,7 +67,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         fields['mission_id'] = widget.missionId.toString();
       }
 
-      final bytes = await File(widget.imagePath).readAsBytes();
+      final bytes = widget.imageBytes;
       final response = await ApiService.uploadImageBytes(
         '/api/posts',
         bytes,
@@ -78,14 +78,18 @@ class _PreviewScreenState extends State<PreviewScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 201) {
+        setState(() {
+          _isUploading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Proof uploaded successfully! +50 XP'),
             backgroundColor: Color(0xFF154212),
           ),
         );
-        Navigator.of(context).pop(true);
-        Navigator.of(context).pop(true);
+        if (context.mounted) {
+          Navigator.of(context).pop(true);
+        }
       } else {
         final respBody = await response.stream.bytesToString();
         throw Exception('Failed to upload: $respBody');
@@ -109,7 +113,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
     setState(() => _isUploading = true);
 
     try {
-      final bytes = await File(widget.imagePath).readAsBytes();
+      final bytes = widget.imageBytes;
       final response = await ApiService.uploadImageBytes(
         '/api/users/profile-picture',
         bytes,
@@ -120,13 +124,18 @@ class _PreviewScreenState extends State<PreviewScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
+        setState(() {
+          _isUploading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile picture updated successfully!'),
             backgroundColor: Color(0xFF154212),
           ),
         );
-        Navigator.of(context).pop(true);
+        if (context.mounted) {
+          Navigator.of(context).pop(true);
+        }
       } else {
         final respBody = await response.stream.bytesToString();
         throw Exception('Failed to upload: $respBody');
@@ -173,8 +182,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.file(
-                File(widget.imagePath),
+              child: Image.memory(
+                widget.imageBytes,
                 width: double.infinity,
                 height: 300,
                 fit: BoxFit.cover,

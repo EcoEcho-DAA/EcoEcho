@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'dart:convert';
 import '../../../../core/network/api_service.dart';
 import '../../../profile/presentation/profile_screen.dart';
-import 'camera_screen.dart';
 import 'post_detail_screen.dart';
 import 'preview_screen.dart';
+import 'camera_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -16,7 +18,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedNavIndex = 0;
   bool _isCommunityFeed = true;
   late Future<List<dynamic>> _feedFuture;
   late Future<List<dynamic>> _friendsFeedFuture;
@@ -63,9 +64,24 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF154212)),
               title: const Text('Take Photo'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(sheetContext);
-                _pickImage(context, ImageSource.camera, missionId, categoryId, isProfilePicMode, onSuccess);
+                final cameras = await availableCameras();
+                if (!context.mounted) return;
+                final uploadSuccess = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CameraScreen(
+                      cameras: cameras,
+                      missionId: missionId,
+                      categoryId: categoryId,
+                      isProfilePicMode: isProfilePicMode,
+                    ),
+                  ),
+                );
+                if (uploadSuccess == true && onSuccess != null) {
+                  onSuccess();
+                }
               },
             ),
             ListTile(
@@ -95,13 +111,15 @@ class _HomePageState extends State<HomePage> {
       final XFile? image = await picker.pickImage(source: source);
       if (image == null) return;
 
+      final Uint8List bytes = await image.readAsBytes();
+
       if (!context.mounted) return;
 
       final uploadSuccess = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => PreviewScreen(
-            imagePath: image.path,
+            imageBytes: bytes,
             missionId: missionId,
             categoryId: categoryId,
             isProfilePicMode: isProfilePicMode,
@@ -374,7 +392,7 @@ class _HomePageState extends State<HomePage> {
                           tabs: [
                             Tab(
                               icon: Icon(Icons.person_add_outlined),
-                              text: 'Friend Requests',
+                              text: 'Buddy Requests',
                             ),
                             Tab(
                               icon: Icon(Icons.notifications_none_outlined),
@@ -506,7 +524,7 @@ class _HomePageState extends State<HomePage> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Friend request ${action}ed successfully!'),
+              content: Text('Buddy request ${action}ed successfully!'),
               backgroundColor: action == 'accept' ? const Color(0xFF154212) : const Color(0xFFBA1A1A),
               behavior: SnackBarBehavior.floating,
             ),
@@ -704,9 +722,13 @@ class _HomePageState extends State<HomePage> {
                   _searchBuddy(val.trim());
                 },
               )
-            : const Text(
-                'EcoEcho',
-                style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold),
+            : Image.asset(
+                'assets/images/logo.png',
+                height: 28,
+                errorBuilder: (context, error, stackTrace) => const Text(
+                  'EcoEcho',
+                  style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold),
+                ),
               ),
         centerTitle: !_isSearching,
         actions: [
@@ -835,7 +857,7 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           const Icon(Icons.error_outline, color: Colors.red, size: 48),
                           const SizedBox(height: 16),
-                          Text('Failed to load friends feed: ${snapshot.error}'),
+                          Text('Failed to load buddies feed: ${snapshot.error}'),
                           TextButton(
                             onPressed: _refreshFeed,
                             child: const Text('Retry'),
@@ -848,7 +870,7 @@ class _HomePageState extends State<HomePage> {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32.0),
-                      child: Text('No posts from friends yet. Add some buddies!'),
+                      child: Text('No posts from buddies yet. Add some buddies!'),
                     ),
                   );
                 }
@@ -986,7 +1008,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 child: Text(
-                  'Friends',
+                  'Buddies',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: !_isCommunityFeed ? const Color(0xFF154212) : const Color(0xFF42493E),

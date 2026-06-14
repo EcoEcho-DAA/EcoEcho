@@ -155,7 +155,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                         ),
                         alignment: Alignment.center,
                         child: Text(
-                          'Friends',
+                          'Buddies',
                           style: TextStyle(
                             color: _leaderboardType == 'friends'
                                 ? Colors.white
@@ -287,137 +287,150 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           final dynamic thirdPlace = users.length > 2 ? users[2] : null;
           final List<dynamic> listUsers = users.length > 3 ? users.sublist(3) : [];
 
-          return Column(
-            children: [
-              // Podium Section
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF8FAF5),
+          return Container(
+            color: Colors.white,
+            child: CustomScrollView(
+              slivers: [
+                // Podium Section
+                SliverToBoxAdapter(
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF8FAF5),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // 2nd Place (Left)
+                        _buildPodiumSpot(
+                          user: secondPlace,
+                          rank: 2,
+                          accentColor: const Color(0xFF7F8C8D), // Silver style
+                          height: 80,
+                          avatarRadius: 26,
+                        ),
+                        // 1st Place (Center)
+                        _buildPodiumSpot(
+                          user: firstPlace,
+                          rank: 1,
+                          accentColor: const Color(0xFFF1C40F), // Gold style
+                          height: 110,
+                          avatarRadius: 34,
+                        ),
+                        // 3rd Place (Right)
+                        _buildPodiumSpot(
+                          user: thirdPlace,
+                          rank: 3,
+                          accentColor: const Color(0xFFD35400), // Bronze style
+                          height: 65,
+                          avatarRadius: 22,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // 2nd Place (Left)
-                    _buildPodiumSpot(
-                      user: secondPlace,
-                      rank: 2,
-                      accentColor: const Color(0xFF7F8C8D), // Silver style
-                      height: 80,
-                      avatarRadius: 26,
-                    ),
-                    // 1st Place (Center)
-                    _buildPodiumSpot(
-                      user: firstPlace,
-                      rank: 1,
-                      accentColor: const Color(0xFFF1C40F), // Gold style
-                      height: 110,
-                      avatarRadius: 34,
-                    ),
-                    // 3rd Place (Right)
-                    _buildPodiumSpot(
-                      user: thirdPlace,
-                      rank: 3,
-                      accentColor: const Color(0xFFD35400), // Bronze style
-                      height: 65,
-                      avatarRadius: 22,
-                    ),
-                  ],
+                const SliverToBoxAdapter(
+                  child: Divider(height: 1, thickness: 1, color: Color(0xFFE1E3DE)),
                 ),
-              ),
-              const Divider(height: 1, thickness: 1, color: Color(0xFFE1E3DE)),
-              // Rest of the Leaderboard
-              Expanded(
-                child: Container(
-                  color: Colors.white,
-                  child: listUsers.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'That\'s all the active leaders today!',
-                            style: TextStyle(color: Color(0xFF72796E), fontStyle: FontStyle.italic),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                          itemCount: listUsers.length,
-                          itemBuilder: (context, index) {
-                            final user = listUsers[index];
-                            final int rank = index + 4;
-                            final String name = user['username'] ?? 'Anonymous';
-                            final int xp = (user['total_xp'] is int) ? user['total_xp'] : int.tryParse(user['total_xp']?.toString() ?? '0') ?? 0;
-                            final String tier = user['tier_name'] ?? 'Seed';
-                            final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+                // Rest of the Leaderboard
+                if (listUsers.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32.0),
+                        child: Text(
+                          'That\'s all the active leaders today!',
+                          style: TextStyle(color: Color(0xFF72796E), fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final user = listUsers[index];
+                          final int rank = index + 4;
+                          final String name = user['username'] ?? 'Anonymous';
+                          final int xp = (user['total_xp'] is int) ? user['total_xp'] : int.tryParse(user['total_xp']?.toString() ?? '0') ?? 0;
+                          final String tier = user['tier_name'] ?? 'Seed';
+                          final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 6.0),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 1,
-                              color: const Color(0xFFF8FAF5),
-                              child: ListTile(
-                                onTap: () {
-                                  if (user['uid'] != null) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ProfileScreen(userId: user['uid'].toString()),
-                                      ),
-                                    );
-                                  }
-                                },
-                                leading: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '#$rank',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF72796E),
-                                        fontSize: 14,
-                                      ),
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 6.0),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 1,
+                            color: const Color(0xFFF8FAF5),
+                            child: ListTile(
+                              onTap: () {
+                                if (user['uid'] != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProfileScreen(userId: user['uid'].toString()),
                                     ),
-                                    const SizedBox(width: 12),
-                                    CircleAvatar(
-                                      radius: 18,
-                                      backgroundColor: const Color(0xFFC2C9BB),
-                                      backgroundImage: user['profile_pic_url'] != null
-                                          ? NetworkImage(user['profile_pic_url']!)
-                                          : null,
-                                      child: user['profile_pic_url'] == null
-                                          ? Text(
-                                              initial,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF154212),
-                                                fontSize: 14,
-                                              ),
-                                            )
-                                          : null,
+                                  );
+                                }
+                              },
+                              leading: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '#$rank',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF72796E),
+                                      fontSize: 14,
                                     ),
-                                  ],
-                                ),
-                                title: Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF191C1A),
                                   ),
-                                ),
-                                subtitle: Text('Tier: $tier', style: const TextStyle(color: Color(0xFF72796E), fontSize: 12)),
-                                trailing: Text(
-                                  '$xp XP',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF154212),
+                                  const SizedBox(width: 12),
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: const Color(0xFFC2C9BB),
+                                    backgroundImage: user['profile_pic_url'] != null
+                                        ? NetworkImage(user['profile_pic_url']!)
+                                        : null,
+                                    child: user['profile_pic_url'] == null
+                                        ? Text(
+                                            initial,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF154212),
+                                              fontSize: 14,
+                                            ),
+                                          )
+                                        : null,
                                   ),
+                                ],
+                              ),
+                              title: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF191C1A),
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                ),
-              ),
-            ],
+                              subtitle: Text('Tier: $tier', style: const TextStyle(color: Color(0xFF72796E), fontSize: 12)),
+                              trailing: Text(
+                                '$xp XP',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF154212),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: listUsers.length,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'dart:convert';
+import '../../../../core/network/api_service.dart';
 import 'camera_screen.dart';
 
 class HomePage extends StatefulWidget {
@@ -12,6 +14,28 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedNavIndex = 0;
   bool _isCommunityFeed = true;
+  late Future<List<dynamic>> _feedFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _feedFuture = _fetchFeed();
+  }
+
+  Future<List<dynamic>> _fetchFeed() async {
+    final response = await ApiService.get('/api/feed/trending');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load feed');
+    }
+  }
+
+  void _refreshFeed() {
+    setState(() {
+      _feedFuture = _fetchFeed();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,31 +110,63 @@ class _HomePageState extends State<HomePage> {
           _buildFeedToggle(),
           const SizedBox(height: 16),
           if (_isCommunityFeed) ...[
-            _buildPostCard(
-              name: 'Juan D.',
-              timeLocation: 'Quezon City • 2h ago',
-              xp: '+50 XP',
-              tagIcon: Icons.park,
-              tagText: 'Tree Planting',
-              tagColor: const Color(0xFF2D5934),
-              tagBgColor: const Color(0xFFE7E9E4),
-              content: 'Planted 5 new saplings at the local community garden this morning! Feeling hopeful for a greener future. 🌱\n\n#Reforest #GreenLiving #EcoEcho',
-              likes: '24',
-              comments: '5',
-            ),
-            const SizedBox(height: 16),
-            _buildPostCard(
-              name: 'Elena M.',
-              timeLocation: 'Makati City • 5h ago',
-              xp: '+30 XP',
-              tagIcon: Icons.directions_bike,
-              tagText: 'Sustainable Transport',
-              tagColor: const Color(0xFF79574C),
-              tagBgColor: const Color(0xFFFED0C1).withOpacity(0.3),
-              content: 'Biked to work today! Saved on gas and got my morning cardio in. Highly recommend taking the scenic route.\n\n#EcoFriendly #Biking #ZeroEmissions',
-              likes: '112',
-              comments: '18',
-              isLiked: true,
+            FutureBuilder<List<dynamic>>(
+              future: _feedFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: CircularProgressIndicator(color: Color(0xFF154212)),
+                    ),
+                  );
+                } else if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text('Failed to load feed: ${snapshot.error}'),
+                          TextButton(
+                            onPressed: _refreshFeed,
+                            child: const Text('Retry'),
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text('No posts yet in the community. Be the first!'),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: snapshot.data!.map((post) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: _buildPostCard(
+                        name: post['author_name'] ?? 'Unknown User',
+                        timeLocation: 'Just now', // Could be parsed from created_at
+                        xp: '+50 XP',
+                        tagIcon: Icons.park,
+                        tagText: post['tag_text'] ?? 'Activity',
+                        tagColor: const Color(0xFF2D5934),
+                        tagBgColor: const Color(0xFFE7E9E4),
+                        content: post['caption'] ?? '',
+                        likes: '0',
+                        comments: '0',
+                        imageUrl: post['image_url'],
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ] else ...[
             const Center(
@@ -267,6 +323,7 @@ class _HomePageState extends State<HomePage> {
     required String likes,
     required String comments,
     bool isLiked = false,
+    String? imageUrl,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -356,15 +413,35 @@ class _HomePageState extends State<HomePage> {
             style: const TextStyle(fontSize: 16, color: Color(0xFF191C1A), height: 1.5),
           ),
           const SizedBox(height: 12),
-          Container(
-            height: 220,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFECEFEA),
+          if (imageUrl != null && imageUrl.isNotEmpty)
+            ClipRRect(
               borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                height: 220,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 220,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECEFEA),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.image_not_supported, size: 48, color: Color(0xFFC2C9BB)),
+                ),
+              ),
+            )
+          else
+            Container(
+              height: 220,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFFECEFEA),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.image, size: 48, color: Color(0xFFC2C9BB)),
             ),
-            child: const Icon(Icons.image, size: 48, color: Color(0xFFC2C9BB)),
-          ),
           const SizedBox(height: 16),
           Divider(height: 1, color: const Color(0xFFC2C9BB).withOpacity(0.2)),
           const SizedBox(height: 12),

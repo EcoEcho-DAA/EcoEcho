@@ -1,10 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000';
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:3000';
+    } else {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return 'http://192.168.1.18:3000';
+      }
+      return 'http://localhost:3000';
+    }
+  }
   
-  // App-wide memory variable to hold the logged-in person's session token
   static String? userToken;
 
   /// Sends a secure POST request to the backend container.

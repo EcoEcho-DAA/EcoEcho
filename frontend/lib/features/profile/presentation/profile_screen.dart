@@ -11,11 +11,22 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late Future<Map<String, dynamic>> _profileFuture;
+  late Future<List<dynamic>> _postsFuture;
 
   @override
   void initState() {
     super.initState();
     _profileFuture = _fetchProfileData();
+    _postsFuture = _fetchUserPosts();
+  }
+
+  Future<List<dynamic>> _fetchUserPosts() async {
+    final response = await ApiService.get('/api/users/me/posts');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load user posts');
+    }
   }
 
   Future<Map<String, dynamic>> _fetchProfileData() async {
@@ -48,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () {
               setState(() {
                 _profileFuture = _fetchProfileData();
+                _postsFuture = _fetchUserPosts();
               });
             },
           )
@@ -246,10 +258,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 24),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'My Eco Log',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF191C1A),
+                      fontFamily: 'Be Vietnam Pro',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FutureBuilder<List<dynamic>>(
+                  future: _postsFuture,
+                  builder: (context, postSnapshot) {
+                    if (postSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: Color(0xFF154212)));
+                    } else if (postSnapshot.hasError) {
+                      return Text('Error loading posts: ${postSnapshot.error}');
+                    } else if (!postSnapshot.hasData || postSnapshot.data!.isEmpty) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Text('No green activities logged yet.'),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: postSnapshot.data!.map((post) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: _buildProfilePostCard(
+                            timeLocation: 'Just now',
+                            tagText: post['tag_text'] ?? 'Activity',
+                            content: post['caption'] ?? '',
+                            imageUrl: post['image_url'],
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildProfilePostCard({
+    required String timeLocation,
+    required String tagText,
+    required String content,
+    String? imageUrl,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF79574C).withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                timeLocation,
+                style: const TextStyle(color: Color(0xFF42493E), fontSize: 12),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE7E9E4),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  tagText,
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF2D5934)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            content,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF191C1A)),
+          ),
+          const SizedBox(height: 12),
+          if (imageUrl != null && imageUrl.isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                imageUrl,
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 150,
+                  width: double.infinity,
+                  color: const Color(0xFFECEFEA),
+                  child: const Icon(Icons.image_not_supported, color: Color(0xFFC2C9BB)),
+                ),
+              ),
+            )
+        ],
       ),
     );
   }

@@ -178,13 +178,55 @@ app.get('/api/challenges/daily', protect, async (req, res) => {
 app.get('/api/feed/trending', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at
+      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text
        FROM posts p
        INNER JOIN users u ON p.user_uid = u.uid
+       LEFT JOIN categories c ON p.category_id = c.id
        ORDER BY p.created_at DESC`
     );
     return res.status(200).json(rows);
   } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// 7b. POST /api/posts -> Creates a new post
+app.post('/api/posts', protect, async (req, res) => {
+  const { caption, category_id, image_url } = req.body;
+  try {
+    const newPost = await pool.query(
+      `INSERT INTO posts (user_uid, caption, category_id, image_url)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.userId, caption, category_id, image_url]
+    );
+
+    await pool.query(
+      `UPDATE users SET total_xp = total_xp + 50 WHERE uid = $1`,
+      [req.userId]
+    );
+
+    res.status(201).json(newPost.rows[0]);
+  } catch (err) {
+    console.error('POST /api/posts error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 7c. GET /api/users/me/posts -> Fetches logged-in user posts
+app.get('/api/users/me/posts', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text
+       FROM posts p
+       INNER JOIN users u ON p.user_uid = u.uid
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.user_uid = $1
+       ORDER BY p.created_at DESC`,
+      [req.userId]
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    console.error('GET /api/users/me/posts error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -215,7 +257,9 @@ app.get('/health', async (_req, res) => {
 
 async function start() {
   await redisClient.safeConnect();
-  app.listen(PORT, () => console.log(`EcoEcho API running live on port ${PORT}`));
+  app.listen(PORT, '0.0.0.0', () => {
+      console.log(`EcoEcho API running live on port ${PORT}`);
+  });
 }
 
 start().catch((err) => {

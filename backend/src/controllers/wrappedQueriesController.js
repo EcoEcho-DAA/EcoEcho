@@ -6,12 +6,12 @@ async function getWrappedDataForUser(userId) {
     SELECT u.total_xp, t.tier_name
     FROM users u
     LEFT JOIN tiers t ON t.id = u.current_tier_id
-    WHERE u.id = $1
+    WHERE u.uid = $1
   ),
   user_trees AS (
     SELECT COUNT(*)::int AS tree_count
     FROM user_missions
-    WHERE user_id = $1
+    WHERE user_uid = $1
       AND mission_id = 4
       AND EXTRACT(YEAR FROM completed_at) = EXTRACT(YEAR FROM NOW())
   )

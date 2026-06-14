@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../core/network/api_service.dart';
+import '../../profile/presentation/profile_screen.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -68,7 +69,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final buttonWidth = (constraints.maxWidth - 3) / 4;
+                  final buttonWidth = (constraints.maxWidth - 6) / 4;
                   return ToggleButtons(
                     constraints: BoxConstraints.expand(width: buttonWidth, height: 36),
                     isSelected: [
@@ -223,6 +224,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                               elevation: 1,
                               color: const Color(0xFFF8FAF5),
                               child: ListTile(
+                                onTap: () {
+                                  if (user['uid'] != null) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ProfileScreen(userId: user['uid'].toString()),
+                                      ),
+                                    );
+                                  }
+                                },
                                 leading: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -297,98 +308,111 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
     return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          // Crown/Trophy Icon
-          if (rank == 1)
-            const Icon(Icons.emoji_events, color: Color(0xFFF1C40F), size: 32)
-          else if (rank == 2)
-            const Icon(Icons.emoji_events, color: Color(0xFF7F8C8D), size: 26)
-          else
-            const Icon(Icons.emoji_events, color: Color(0xFFD35400), size: 22),
-          const SizedBox(height: 8),
-          // Stylized Avatar Badge with Border
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: accentColor, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: accentColor.withValues(alpha: 0.2),
-                  blurRadius: 8,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: CircleAvatar(
-              radius: avatarRadius,
-              backgroundColor: const Color(0xFFE1E3DE),
-              child: Text(
-                initial,
-                style: TextStyle(
-                  fontSize: avatarRadius * 0.8,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF154212),
-                  fontFamily: 'Be Vietnam Pro',
+      child: GestureDetector(
+        onTap: () {
+          if (user['uid'] != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProfileScreen(userId: user['uid'].toString()),
+              ),
+            );
+          }
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            // Crown/Trophy Icon
+            if (rank == 1)
+              const Icon(Icons.emoji_events, color: Color(0xFFF1C40F), size: 32)
+            else if (rank == 2)
+              const Icon(Icons.emoji_events, color: Color(0xFF7F8C8D), size: 26)
+            else
+              const Icon(Icons.emoji_events, color: Color(0xFFD35400), size: 22),
+            const SizedBox(height: 8),
+            // Stylized Avatar Badge with Border
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: accentColor, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: avatarRadius,
+                backgroundColor: const Color(0xFFE1E3DE),
+                child: Text(
+                  initial,
+                  style: TextStyle(
+                    fontSize: avatarRadius * 0.8,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF154212),
+                    fontFamily: 'Be Vietnam Pro',
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          // User Name
-          Text(
-            name,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: Color(0xFF191C1A),
+            const SizedBox(height: 10),
+            // User Name
+            Text(
+              name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Color(0xFF191C1A),
+              ),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-          // XP
-          Text(
-            '$xp XP',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: accentColor,
+            // XP
+            Text(
+              '$xp XP',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: accentColor,
+              ),
             ),
-          ),
-          // Tier Name
-          Text(
-            tier,
-            style: const TextStyle(
-              fontSize: 10,
-              color: Color(0xFF72796E),
+            // Tier Name
+            Text(
+              tier,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Color(0xFF72796E),
+              ),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          // Solid base representing the platform
-          Container(
-            height: height,
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.15),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              border: Border.all(color: accentColor.withValues(alpha: 0.3)),
-            ),
-            child: Center(
-              child: Text(
-                '#$rank',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: accentColor,
-                  fontSize: 18,
+            const SizedBox(height: 8),
+            // Solid base representing the platform
+            Container(
+              height: height,
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.15),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+              ),
+              child: Center(
+                child: Text(
+                  '#$rank',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: accentColor,
+                    fontSize: 18,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

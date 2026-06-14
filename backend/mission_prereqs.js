@@ -20,7 +20,11 @@ async function migrate() {
       INSERT INTO mission_prerequisites (mission_id, prerequisite_mission_id)
       VALUES 
         (2, 1),
-        (2, 3)
+        (2, 3),
+        (102, 101),
+        (103, 101),
+        (104, 102),
+        (105, 103)
       ON CONFLICT DO NOTHING;
     `);
     console.log('Migration successful: Created mission_prerequisites table and dummy data.');

@@ -329,9 +329,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                   CircleAvatar(
                                     radius: 18,
                                     backgroundColor: const Color(0xFFC2C9BB),
-                                    backgroundImage: NetworkImage(
-                                      user['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                                    ),
+                                    backgroundImage: user['profile_pic_url'] != null
+                                      ? NetworkImage(user['profile_pic_url'])
+                                      : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                                   ),
                                 ],
                               ),
@@ -424,9 +424,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               child: CircleAvatar(
                 radius: avatarRadius,
                 backgroundColor: const Color(0xFFE1E3DE),
-                backgroundImage: NetworkImage(
-                  user['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                ),
+                backgroundImage: user['profile_pic_url'] != null
+                  ? NetworkImage(user['profile_pic_url'])
+                  : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
               ),
             ),
             const SizedBox(height: 10),

@@ -7,4 +7,4 @@ abstract class MissionsEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class FetchDailyMissions extends MissionsEvent {}
+class FetchAllMissions extends MissionsEvent {}

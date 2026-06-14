@@ -1352,9 +1352,9 @@ class _PostCardState extends State<PostCard> {
                       CircleAvatar(
                         backgroundColor: const Color(0xFFECEFEA),
                         radius: 20,
-                        backgroundImage: NetworkImage(
-                          widget.postData['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                        ),
+                        backgroundImage: widget.postData['profile_pic_url'] != null
+                          ? NetworkImage(widget.postData['profile_pic_url'])
+                          : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1772,9 +1772,9 @@ class _CommentSheetState extends State<CommentSheet> {
                           CircleAvatar(
                             radius: 16,
                             backgroundColor: const Color(0xFFECEFEA),
-                            backgroundImage: NetworkImage(
-                              comment['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                            ),
+                            backgroundImage: comment['profile_pic_url'] != null
+                              ? NetworkImage(comment['profile_pic_url'])
+                              : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -1783,11 +1783,13 @@ class _CommentSheetState extends State<CommentSheet> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(
-                                      comment['author_name'] ?? 'Unknown User',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF191C1A)),
+                                    Expanded(
+                                      child: Text(
+                                        comment['author_name'] ?? 'Unknown User',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF191C1A)),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                    const Spacer(),
                                     if (currentUserUid != null && comment['user_uid'] == currentUserUid)
                                       IconButton(
                                         icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),

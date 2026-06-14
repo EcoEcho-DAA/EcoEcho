@@ -195,18 +195,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  IconData _getTierIcon(String tierName) {
+  String _getTierImagePath(String tierName) {
     final name = tierName.toLowerCase();
     if (name.contains('seedling') || name == 'seed') {
-      return Icons.grass;
+      return 'assets/icons/tier_seed.png';
     } else if (name.contains('sprout')) {
-      return Icons.spa;
+      return 'assets/icons/tier_sprout.png';
     } else if (name.contains('sapling')) {
-      return Icons.nature;
+      return 'assets/icons/tier_sapling.png';
     } else if (name.contains('thriving tree') || name.contains('ancient')) {
-      return Icons.forest;
+      return 'assets/icons/tier_ancient.png';
     }
-    return Icons.eco;
+    return 'assets/icons/tier_seed.png';
   }
 
   @override
@@ -425,9 +425,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               CircleAvatar(
                                 radius: 46,
                                 backgroundColor: const Color(0xFFC2C9BB),
-                                backgroundImage: NetworkImage(
-                                  data['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                                ),
+                                backgroundImage: data['profile_pic_url'] != null
+                                  ? NetworkImage(data['profile_pic_url'])
+                                  : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                               ),
                               if (widget.userId == null)
                                 Positioned(
@@ -571,10 +571,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  _getTierIcon(tier),
-                                  color: const Color(0xFF154212),
-                                  size: 18,
+                                Image.asset(
+                                  _getTierImagePath(tier),
+                                  width: 24,
+                                  height: 24,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
@@ -1273,9 +1273,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       CircleAvatar(
                         radius: 20,
                         backgroundColor: const Color(0xFFECEFEA),
-                        backgroundImage: NetworkImage(
-                          friend['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                        ),
+                        backgroundImage: friend['profile_pic_url'] != null
+                            ? NetworkImage(friend['profile_pic_url'])
+                            : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                       ),
                       const SizedBox(height: 6),
                       SizedBox(

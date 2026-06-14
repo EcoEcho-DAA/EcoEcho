@@ -1407,6 +1407,39 @@ app.get('/api/missions/daily', protect, async (req, res) => {
   }
 });
 
+// 9. GET /api/missions/fixed
+app.get('/api/missions/fixed', protect, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const missionsRes = await pool.query(
+      `SELECT 
+        m.id, 
+        m.title, 
+        m.description, 
+        m.xp_reward, 
+        um.completed_at
+      FROM missions m
+      LEFT JOIN user_missions um ON m.id = um.mission_id AND um.user_uid = $1
+      WHERE m.is_daily = false
+      ORDER BY m.id`,
+      [userId]
+    );
+
+    const prereqsRes = await pool.query(
+      `SELECT mission_id, prerequisite_mission_id FROM mission_prerequisites`
+    );
+
+    res.status(200).json({
+      missions: missionsRes.rows,
+      prerequisites: prereqsRes.rows
+    });
+  } catch (err) {
+    console.error('GET /api/missions/fixed error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- INFRASTRUCTURE CONFIG ---
 app.get('/health', async (_req, res) => {
   try {

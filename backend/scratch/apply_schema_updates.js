@@ -15,7 +15,7 @@ async function applyUpdates() {
     console.log('Altering users table...');
     await db.query(`
       ALTER TABLE users 
-      ADD COLUMN IF NOT EXISTS profile_pic_url TEXT DEFAULT 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png';
+      ADD COLUMN IF NOT EXISTS profile_pic_url TEXT;
     `);
     console.log('Users table altered successfully.');
 

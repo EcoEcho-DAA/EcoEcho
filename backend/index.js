@@ -206,7 +206,7 @@ app.get('/api/users/me', protect, async (req, res) => {
 app.get('/api/users/me/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -503,7 +503,7 @@ app.get('/api/users/:uid', protect, async (req, res) => {
 app.get('/api/users/:uid/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -704,7 +704,7 @@ app.post('/api/friends/decline', protect, async (req, res) => {
 app.get('/api/feed/friends', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -834,7 +834,7 @@ app.get('/api/feed/trending', optionalProtect, async (req, res) => {
   try {
     const userId = req.userId || null;
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -1057,7 +1057,7 @@ app.put('/api/users/profile-picture', protect, upload.single('image'), async (re
 app.get('/api/users/me/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,

@@ -4,6 +4,7 @@ insert into tiers (id, tier_name, required_xp) values
 (2, 'sprout', 500),
 (3, 'sapling', 1200),
 (4, 'ancient tree', 2500)
+(5, 'legendary tree', 10000)
 on conflict (id) do update set 
     tier_name = excluded.tier_name,
     required_xp = excluded.required_xp;

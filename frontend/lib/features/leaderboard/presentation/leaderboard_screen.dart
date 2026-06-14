@@ -79,6 +79,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             fontFamily: 'Be Vietnam Pro',
           ),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.filter_list, color: Color(0xFF154212)),
+          onPressed: _showFilterSheet,
+        ),
         actions: [
 
           IconButton(
@@ -171,73 +175,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFC2C9BB)),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final buttonWidth = (constraints.maxWidth - 6) / 4;
-                  return ToggleButtons(
-                    constraints: BoxConstraints.expand(width: buttonWidth, height: 36),
-                    isSelected: [
-                      _selectedTimeframe == 'daily',
-                      _selectedTimeframe == 'monthly',
-                      _selectedTimeframe == 'yearly',
-                      _selectedTimeframe == 'all-time',
-                    ],
-                    onPressed: (index) {
-                      final timeframes = ['daily', 'monthly', 'yearly', 'all-time'];
-                      if (_selectedTimeframe != timeframes[index]) {
-                        setState(() {
-                          _selectedTimeframe = timeframes[index];
-                          _leaderboardFuture = _fetchLeaderboardData();
-                        });
-                      }
-                    },
-                    color: const Color(0xFF72796E),
-                    selectedColor: const Color(0xFF154212),
-                    fillColor: const Color(0xFFC2C9BB).withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(7),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Be Vietnam Pro',
-                      fontSize: 12,
-                    ),
-                    children: const [
-                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Daily'))),
-                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Monthly'))),
-                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Yearly'))),
-                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('All-Time'))),
-                    ],
-                  );
-                }
-              ),
-            ),
-          ),
-          // Geographic Filter Chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildGeoChip('All', 'all'),
-                  const SizedBox(width: 8),
-                  _buildGeoChip('City (${_userCity ?? 'Local'})', 'city'),
-                  const SizedBox(width: 8),
-                  _buildGeoChip('Province (${_userProvince ?? 'Local'})', 'province'),
-                  const SizedBox(width: 8),
-                  _buildGeoChip('Region (${_userRegion ?? 'Local'})', 'region'),
-                ],
-              ),
-            ),
-          ),
+
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: _leaderboardFuture,
@@ -391,19 +329,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                   CircleAvatar(
                                     radius: 18,
                                     backgroundColor: const Color(0xFFC2C9BB),
-                                    backgroundImage: user['profile_pic_url'] != null
-                                        ? NetworkImage(user['profile_pic_url']!)
-                                        : null,
-                                    child: user['profile_pic_url'] == null
-                                        ? Text(
-                                            initial,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF154212),
-                                              fontSize: 14,
-                                            ),
-                                          )
-                                        : null,
+                                    backgroundImage: NetworkImage(
+                                      user['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
+                                    ),
                                   ),
                                 ],
                               ),
@@ -496,20 +424,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               child: CircleAvatar(
                 radius: avatarRadius,
                 backgroundColor: const Color(0xFFE1E3DE),
-                backgroundImage: user['profile_pic_url'] != null
-                    ? NetworkImage(user['profile_pic_url']!)
-                    : null,
-                child: user['profile_pic_url'] == null
-                    ? Text(
-                        initial,
-                        style: TextStyle(
-                          fontSize: avatarRadius * 0.8,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF154212),
-                          fontFamily: 'Be Vietnam Pro',
-                        ),
-                      )
-                    : null,
+                backgroundImage: NetworkImage(
+                  user['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -571,27 +488,167 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
   }
 
-  Widget _buildGeoChip(String label, String value) {
-    final isSelected = _selectedGeoFilter == value;
-    return ChoiceChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : const Color(0xFF42493E),
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
+  void _showFilterSheet() {
+    String tempTimeframe = _selectedTimeframe;
+    String tempGeoFilter = _selectedGeoFilter;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      selected: isSelected,
-      selectedColor: const Color(0xFF154212),
-      backgroundColor: const Color(0xFFECEFEA),
-      onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            _selectedGeoFilter = value;
-            _leaderboardFuture = _fetchLeaderboardData();
-          });
-        }
+      builder: (BuildContext sheetContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setSheetState) {
+            
+            Widget buildGeoChip(String label, String value) {
+              final isSelected = tempGeoFilter == value;
+              return ChoiceChip(
+                label: Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF42493E),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: const Color(0xFF154212),
+                backgroundColor: const Color(0xFFECEFEA),
+                onSelected: (selected) {
+                  if (selected) {
+                    setSheetState(() {
+                      tempGeoFilter = value;
+                    });
+                  }
+                },
+              );
+            }
+
+            Widget buildTimeframeButton(String label, String value) {
+              final isSelected = tempTimeframe == value;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    if (tempTimeframe != value) {
+                      setSheetState(() {
+                        tempTimeframe = value;
+                      });
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF154212) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    alignment: Alignment.center,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : const Color(0xFF42493E),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Filters',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF154212),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Timeframe',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF42493E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECEFEA),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Row(
+                        children: [
+                          buildTimeframeButton('Daily', 'daily'),
+                          buildTimeframeButton('Monthly', 'monthly'),
+                          buildTimeframeButton('Yearly', 'yearly'),
+                          buildTimeframeButton('All-Time', 'all-time'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Location',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF42493E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8.0,
+                      runSpacing: 8.0,
+                      children: [
+                        buildGeoChip('All', 'all'),
+                        buildGeoChip('City (${_userCity ?? 'Local'})', 'city'),
+                        buildGeoChip('Province (${_userProvince ?? 'Local'})', 'province'),
+                        buildGeoChip('Region (${_userRegion ?? 'Local'})', 'region'),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF154212),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          setState(() {
+                            _selectedTimeframe = tempTimeframe;
+                            _selectedGeoFilter = tempGeoFilter;
+                            _leaderboardFuture = _fetchLeaderboardData();
+                          });
+                        },
+                        child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
       },
     );
   }

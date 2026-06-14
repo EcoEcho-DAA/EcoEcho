@@ -722,13 +722,27 @@ class _HomePageState extends State<HomePage> {
                   _searchBuddy(val.trim());
                 },
               )
-            : Image.asset(
-                'assets/images/logo.png',
-                height: 28,
-                errorBuilder: (context, error, stackTrace) => const Text(
-                  'EcoEcho',
-                  style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold),
-                ),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/images/logo.png',
+                    height: 28,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.eco,
+                      color: Color(0xFF154212),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'EcoEcho',
+                    style: TextStyle(
+                      color: Color(0xFF154212),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                    ),
+                  ),
+                ],
               ),
         centerTitle: !_isSearching,
         actions: [
@@ -769,11 +783,10 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 8),
         ],
       ),
+
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
-          _buildLogActivitySection(),
-          const SizedBox(height: 24),
           _buildFeedToggle(),
           const SizedBox(height: 16),
           if (_isCommunityFeed) ...[
@@ -906,61 +919,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildLogActivitySection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF79574C).withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        children: [
-          const CircleAvatar(
-            radius: 28,
-            backgroundColor: Color(0xFF2D5A27),
-            child: Icon(Icons.add_a_photo, color: Color(0xFF9DD090), size: 28),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Log Green Activity',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF191C1A)),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Upload a photo to earn XP and inspire the community.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF42493E), fontSize: 14),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => _selectImageSource(context, onSuccess: () {
-              setState(() {
-                _feedFuture = _fetchFeed();
-                _friendsFeedFuture = _fetchFriendsFeed();
-              });
-            }),
-            icon: const Icon(Icons.upload, size: 18),
-            label: const Text('Upload Proof', style: TextStyle(fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF154212),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              elevation: 0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildFeedToggle() {
     return Container(
@@ -1372,80 +1331,94 @@ class _PostCardState extends State<PostCard> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: () {
-                  final authorUid = widget.postData['author_uid'];
-                  if (authorUid != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ProfileScreen(userId: authorUid.toString()),
-                      ),
-                    );
-                  }
-                },
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: const Color(0xFFECEFEA),
-                      radius: 20,
-                      backgroundImage: NetworkImage(
-                        widget.postData['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF191C1A)),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    final authorUid = widget.postData['author_uid'];
+                    if (authorUid != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProfileScreen(userId: authorUid.toString()),
                         ),
-                        Text(
-                          _formatRelativeTime(widget.postData['created_at']),
-                          style: const TextStyle(color: Color(0xFF42493E), fontSize: 12),
+                      );
+                    }
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: const Color(0xFFECEFEA),
+                        radius: 20,
+                        backgroundImage: NetworkImage(
+                          widget.postData['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF191C1A)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              _formatRelativeTime(widget.postData['created_at']),
+                              style: const TextStyle(color: Color(0xFF42493E), fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFF15411F),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.stars, color: Colors.white, size: 14),
+                        const Icon(Icons.stars, color: Colors.white, size: 12),
                         const SizedBox(width: 4),
                         const Text(
                           '+50 XP',
-                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (widget.currentUserUid != null && widget.postData['author_uid'] == widget.currentUserUid)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A), size: 20),
-                      onPressed: _deletePost,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                    )
-                  else
-                    IconButton(
-                      icon: const Icon(Icons.flag_outlined, color: Color(0xFFBA1A1A), size: 20),
-                      onPressed: _reportPost,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
+                  if (widget.postData['mission_id'] != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.assignment_turned_in, color: Colors.orange, size: 12),
+                          SizedBox(width: 4),
+                          Text(
+                            'Mission',
+                            style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
                 ],
               ),
             ],
@@ -1470,11 +1443,13 @@ class _PostCardState extends State<PostCard> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            content,
-            style: const TextStyle(fontSize: 16, color: Color(0xFF191C1A), height: 1.5),
-          ),
+          if (content.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              content,
+              style: const TextStyle(fontSize: 16, color: Color(0xFF191C1A), height: 1.5),
+            ),
+          ],
           const SizedBox(height: 12),
           if (imageUrl != null && imageUrl.isNotEmpty)
             ClipRRect(
@@ -1505,6 +1480,7 @@ class _PostCardState extends State<PostCard> {
               ),
               child: const Icon(Icons.image, size: 48, color: Color(0xFFC2C9BB)),
             ),
+
           const SizedBox(height: 16),
           Divider(height: 1, color: const Color(0xFFC2C9BB).withOpacity(0.2)),
           const SizedBox(height: 12),
@@ -1567,6 +1543,21 @@ class _PostCardState extends State<PostCard> {
                   ],
                 ),
               ),
+              const Spacer(),
+              if (widget.currentUserUid != null && widget.postData['author_uid'] == widget.currentUserUid)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A), size: 20),
+                  onPressed: _deletePost,
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.flag_outlined, color: Color(0xFFBA1A1A), size: 20),
+                  onPressed: _reportPost,
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                ),
             ],
           ),
         ],

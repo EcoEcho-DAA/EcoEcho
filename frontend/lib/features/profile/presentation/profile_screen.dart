@@ -423,26 +423,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Stack(
                             children: [
                               CircleAvatar(
-                                radius: 50,
-                                backgroundColor: const Color(0xFFE1E3DE),
-                                backgroundImage: data['profile_pic_url'] != null
-                                    ? NetworkImage(data['profile_pic_url'])
-                                    : null,
-                                child: data['profile_pic_url'] == null
-                                    ? CircleAvatar(
-                                        radius: 46,
-                                        backgroundColor: const Color(0xFF154212),
-                                        child: Text(
-                                          initial,
-                                          style: const TextStyle(
-                                            fontSize: 40,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            fontFamily: 'Be Vietnam Pro',
-                                          ),
-                                        ),
-                                      )
-                                    : null,
+                                radius: 46,
+                                backgroundColor: const Color(0xFFC2C9BB),
+                                backgroundImage: NetworkImage(
+                                  data['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
+                                ),
                               ),
                               if (widget.userId == null)
                                 Positioned(
@@ -1138,7 +1123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Buddy request declined.'),
-            backgroundColor: Color(0xFFBA1A1A),
+            backgroundColor: const Color(0xFFBA1A1A),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1268,7 +1253,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             itemBuilder: (context, index) {
               final friend = _friendsList[index];
               final String name = friend['username'] ?? 'Eco Warrior';
-              final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'E';
               final String friendUid = friend['uid']?.toString() ?? '';
 
               return Padding(
@@ -1287,26 +1271,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     children: [
                       CircleAvatar(
-                        radius: 28,
-                        backgroundColor: const Color(0xFFE1E3DE),
-                        backgroundImage: friend['profile_pic_url'] != null
-                            ? NetworkImage(friend['profile_pic_url'])
-                            : null,
-                        child: friend['profile_pic_url'] == null
-                            ? CircleAvatar(
-                                radius: 25,
-                                backgroundColor: const Color(0xFF154212),
-                                child: Text(
-                                  initial,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    fontFamily: 'Be Vietnam Pro',
-                                  ),
-                                ),
-                              )
-                            : null,
+                        radius: 20,
+                        backgroundColor: const Color(0xFFECEFEA),
+                        backgroundImage: NetworkImage(
+                          friend['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
+                        ),
                       ),
                       const SizedBox(height: 6),
                       SizedBox(

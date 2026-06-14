@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../../core/network/api_service.dart';
 
 class PreviewScreen extends StatefulWidget {
   final String imagePath;
@@ -25,19 +26,49 @@ class _PreviewScreenState extends State<PreviewScreen> {
   void _uploadPost() async {
     setState(() => _isUploading = true);
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      int categoryId = 1;
+      switch (_selectedTag) {
+        case 'Tree Planting': categoryId = 1; break;
+        case 'Sustainable Transport': categoryId = 2; break;
+        case 'Recycling': categoryId = 3; break;
+        case 'Energy Saving': categoryId = 4; break;
+        case 'Cleanup Drive': categoryId = 5; break;
+      }
 
-    if (!mounted) return;
+      final response = await ApiService.uploadImage('/api/posts', widget.imagePath, {
+        'caption': _captionController.text,
+        'category_id': categoryId.toString(),
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Proof uploaded successfully! +50 XP'),
-        backgroundColor: Color(0xFF154212),
-      ),
-    );
+      if (!mounted) return;
 
-    Navigator.of(context).pop();
-    Navigator.of(context).pop();
+      if (response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Proof uploaded successfully! +50 XP'),
+            backgroundColor: Color(0xFF154212),
+          ),
+        );
+      } else {
+        final respBody = await response.stream.bytesToString();
+        throw Exception('Failed to upload: $respBody');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Upload failed. ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+        Navigator.of(context).pop();
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   @override

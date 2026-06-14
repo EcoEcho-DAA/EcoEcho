@@ -1,10 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000';
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:3000';
+    } else {
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return 'http://192.168.1.18:3000';
+      }
+      return 'http://localhost:3000';
+    }
+  }
   
-  // App-wide memory variable to hold the logged-in person's session token
   static String? userToken;
 
   /// Sends a secure POST request to the backend container.
@@ -42,6 +51,41 @@ class ApiService {
 
     try {
       return await http.get(url, headers: headers);
+    } catch (e) {
+      throw Exception('Network execution fault: $e');
+    }
+  }
+
+  /// Sends a DELETE request to the backend.
+  static Future<http.Response> delete(String endpoint) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (userToken != null) 'Authorization': 'Bearer $userToken',
+    };
+
+    try {
+      return await http.delete(url, headers: headers);
+    } catch (e) {
+      throw Exception('Network execution fault: $e');
+    }
+  }
+
+  /// Uploads an image using a multipart form request.
+  static Future<http.StreamedResponse> uploadImage(String endpoint, String imagePath, Map<String, String> fields) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final request = http.MultipartRequest('POST', url);
+
+    if (userToken != null) {
+      request.headers['Authorization'] = 'Bearer $userToken';
+    }
+
+    request.fields.addAll(fields);
+    request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+
+    try {
+      return await request.send();
     } catch (e) {
       throw Exception('Network execution fault: $e');
     }

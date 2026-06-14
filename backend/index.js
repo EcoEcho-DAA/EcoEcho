@@ -3,12 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
 const pool = require('./src/config/db');
 const redisClient = require('./src/config/redisClient');
 const { getWrappedDataForUser } = require('./src/controllers/wrappedQueriesController');
 const { kmpContains } = require('./src/algorithms/stringMatch');
 const { runLeaderboardHeapSort } = require('./src/algorithms/heapSort');
 const { verifyMissionPrerequisites } = require('./src/algorithms/dfs');
+const supabase = require('./src/config/supabaseClient');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +19,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 // --- AUTHENTICATION MIDDLEWARE ---
 async function protect(req, res, next) {
@@ -24,7 +31,6 @@ async function protect(req, res, next) {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, JWT_SECRET);
-      // Stores the validated UUID (uid) into the request object
       req.userId = decoded.id;
       return next();
     } catch (error) {
@@ -34,6 +40,18 @@ async function protect(req, res, next) {
   if (!token) {
     return res.status(401).json({ message: 'Not authorized, no token available' });
   }
+}
+
+async function optionalProtect(req, res, next) {
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.userId = decoded.id;
+    } catch (error) { }
+  }
+  return next();
 }
 
 // --- DYNAMIC ROUTES ---
@@ -53,7 +71,6 @@ app.post('/api/auth/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Matches your exact schema columns: uid, username, email, password_hash, total_xp, city, province
     const newUser = await pool.query(
       `INSERT INTO users (username, email, password_hash, total_xp, city, province) 
        VALUES ($1, $2, $3, $4, $5, $6) 
@@ -74,7 +91,7 @@ app.post('/api/auth/register', async (req, res) => {
       user: newUser.rows[0]
     });
   } catch (err) {
-    console.error('💥 Registration SQL Error:', err.message);
+    console.error('Registration SQL Error:', err.message);
     res.status(400).json({ error: err.message });
   }
 });
@@ -178,17 +195,191 @@ app.get('/api/challenges/daily', protect, async (req, res) => {
 });
 
 // 7. GET /api/feed/trending -> Satisfies the community social impact feed
-app.get('/api/feed/trending', async (req, res) => {
+app.get('/api/feed/trending', optionalProtect, async (req, res) => {
   try {
+    const userId = req.userId || null;
     const { rows } = await pool.query(
-      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at
+      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me
        FROM posts p
        INNER JOIN users u ON p.user_uid = u.uid
-       ORDER BY p.created_at DESC`
+       LEFT JOIN categories c ON p.category_id = c.id
+       ORDER BY p.created_at DESC`,
+      [userId]
     );
     return res.status(200).json(rows);
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// 7b. POST /api/posts -> Creates a new post 
+const FLAGGED_TERMS = ['badword1', 'spamlink', 'toxicphrase'];
+app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
+  const { caption, category_id } = req.body;
+  let image_url = null;
+
+  try {
+    const textToCheck = caption || '';
+    for (const term of FLAGGED_TERMS) {
+      if (kmpContains(textToCheck, term)) {
+        return res.status(400).json({
+          error: "Post blocked: Content violates EcoEcho's community guidelines."
+        });
+      }
+    }
+
+    if (req.file) {
+      try {
+        const bucketName = process.env.SUPABASE_BUCKET_NAME || 'post-images';
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(req.file.originalname) || '.jpg';
+        const filename = `${uniqueSuffix}${ext}`;
+
+        // Upload file buffer directly to Supabase Storage
+        const { data, error } = await supabase.storage
+          .from(bucketName)
+          .upload(filename, req.file.buffer, {
+            contentType: req.file.mimetype,
+            upsert: false
+          });
+
+        if (error) {
+          throw new Error(`Supabase storage error: ${error.message}`);
+        }
+
+        // Retrieve the public URL
+        const { data: publicUrlData } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(filename);
+
+        image_url = publicUrlData.publicUrl;
+      } catch (uploadErr) {
+        console.error('Image upload to Supabase failed:', uploadErr);
+        return res.status(500).json({ error: `Image upload failed: ${uploadErr.message}` });
+      }
+    } else {
+      image_url = req.body.image_url || 'https://picsum.photos/400/300';
+    }
+
+    const newPost = await pool.query(
+      `INSERT INTO posts (user_uid, caption, category_id, image_url)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.userId, textToCheck, category_id || null, image_url]
+    );
+
+    await pool.query(
+      `UPDATE users SET total_xp = total_xp + 50 WHERE uid = $1`,
+      [req.userId]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Post created successfully!',
+      post: newPost.rows[0]
+    });
+  } catch (err) {
+    console.error('POST /api/posts error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 7c. GET /api/users/me/posts
+app.get('/api/users/me/posts', protect, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me
+       FROM posts p
+       INNER JOIN users u ON p.user_uid = u.uid
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.user_uid = $1
+       ORDER BY p.created_at DESC`,
+      [req.userId]
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    console.error('GET /api/users/me/posts error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- LIKES AND COMMENTS ---
+
+app.post('/api/posts/:id/like', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    await pool.query(
+      'INSERT INTO post_likes (post_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [postId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/posts/:id/like', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    await pool.query(
+      'DELETE FROM post_likes WHERE post_id = $1 AND user_uid = $2',
+      [postId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/posts/:id/comments', async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { rows } = await pool.query(
+      `SELECT pc.id, pc.content, pc.created_at, pc.user_uid, u.username as author_name 
+       FROM post_comments pc 
+       JOIN users u ON pc.user_uid = u.uid 
+       WHERE pc.post_id = $1 
+       ORDER BY pc.created_at ASC`,
+      [postId]
+    );
+    res.status(200).json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/posts/:id/comment', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { content } = req.body;
+    if (!content) return res.status(400).json({ error: 'Content is required' });
+
+    const { rows } = await pool.query(
+      'INSERT INTO post_comments (post_id, user_uid, content) VALUES ($1, $2, $3) RETURNING *',
+      [postId, req.userId, content]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/posts/:id/comment/:commentId', protect, async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const { rowCount } = await pool.query(
+      'DELETE FROM post_comments WHERE id = $1 AND post_id = $2 AND user_uid = $3',
+      [commentId, id, req.userId]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'Comment not found or not authorized' });
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -204,40 +395,9 @@ app.get('/api/missions/daily', protect, async (req, res) => {
   }
 });
 
-// --- NEW ROUTE: POST /api/posts (Abuse Protection Gateway) ---
-const FLAGGED_TERMS = ['badword1', 'spamlink', 'toxicphrase'];
-app.post('/api/posts', protect, async (req, res) => {
-  const { caption, category_id, image_url } = req.body;
 
-  try {
-    const textToCheck = caption || '';
-    for (const term of FLAGGED_TERMS) {
-      if (kmpContains(textToCheck, term)) {
-        return res.status(400).json({
-          error: "Post blocked: Content violates EcoEcho's community guidelines."
-        });
-      }
-    }
 
-    const result = await pool.query(
-      `INSERT INTO posts (user_uid, caption, category_id, image_url)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, user_uid, caption, category_id, image_url, created_at`,
-      [req.userId, textToCheck, category_id || null, image_url || null]
-    );
-
-    return res.status(201).json({
-      success: true,
-      message: 'Post created successfully!',
-      post: result.rows[0]
-    });
-  } catch (err) {
-    console.error('Error creating post:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// --- NEW ROUTE: POST /api/posts/:id/vote (Relational Voting & Leaderboard) ---
+// --- POST /api/posts/:id/vote (Relational Voting & Leaderboard) ---
 app.post('/api/posts/:id/vote', protect, async (req, res) => {
   const postId = Number(req.params.id);
   const { vote_direction } = req.body;
@@ -388,7 +548,9 @@ async function start() {
     console.log('[INIT WARNING] post_reports check skipped:', err.message);
   }
 
-  app.listen(PORT, () => console.log(`EcoEcho API running live on port ${PORT}`));
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`EcoEcho API running live on port ${PORT}`);
+  });
 }
 
 start().catch((err) => {

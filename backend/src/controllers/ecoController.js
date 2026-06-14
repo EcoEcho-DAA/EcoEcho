@@ -15,7 +15,7 @@ async function getLeaderboard(_req, res) {
     }
 
     const { rows } = await pool.query(
-      `SELECT id, username, total_xp, city, province
+      `SELECT uid as id, username, total_xp, city, province
        FROM users`
     );
 

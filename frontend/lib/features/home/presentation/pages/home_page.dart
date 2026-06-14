@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'dart:convert';
+import '../../../../core/network/api_service.dart';
 import 'camera_screen.dart';
 
 class HomePage extends StatefulWidget {
@@ -12,6 +14,28 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedNavIndex = 0;
   bool _isCommunityFeed = true;
+  late Future<List<dynamic>> _feedFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _feedFuture = _fetchFeed();
+  }
+
+  Future<List<dynamic>> _fetchFeed() async {
+    final response = await ApiService.get('/api/feed/trending');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load feed');
+    }
+  }
+
+  void _refreshFeed() {
+    setState(() {
+      _feedFuture = _fetchFeed();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,31 +110,64 @@ class _HomePageState extends State<HomePage> {
           _buildFeedToggle(),
           const SizedBox(height: 16),
           if (_isCommunityFeed) ...[
-            _buildPostCard(
-              name: 'Juan D.',
-              timeLocation: 'Quezon City • 2h ago',
-              xp: '+50 XP',
-              tagIcon: Icons.park,
-              tagText: 'Tree Planting',
-              tagColor: const Color(0xFF2D5934),
-              tagBgColor: const Color(0xFFE7E9E4),
-              content: 'Planted 5 new saplings at the local community garden this morning! Feeling hopeful for a greener future. 🌱\n\n#Reforest #GreenLiving #EcoEcho',
-              likes: '24',
-              comments: '5',
-            ),
-            const SizedBox(height: 16),
-            _buildPostCard(
-              name: 'Elena M.',
-              timeLocation: 'Makati City • 5h ago',
-              xp: '+30 XP',
-              tagIcon: Icons.directions_bike,
-              tagText: 'Sustainable Transport',
-              tagColor: const Color(0xFF79574C),
-              tagBgColor: const Color(0xFFFED0C1).withOpacity(0.3),
-              content: 'Biked to work today! Saved on gas and got my morning cardio in. Highly recommend taking the scenic route.\n\n#EcoFriendly #Biking #ZeroEmissions',
-              likes: '112',
-              comments: '18',
-              isLiked: true,
+            FutureBuilder<List<dynamic>>(
+              future: _feedFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: CircularProgressIndicator(color: Color(0xFF154212)),
+                    ),
+                  );
+                } else if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text('Failed to load feed: ${snapshot.error}'),
+                          TextButton(
+                            onPressed: _refreshFeed,
+                            child: const Text('Retry'),
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text('No posts yet in the community. Be the first!'),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: snapshot.data!.map((post) {
+                    String? rawImageUrl = post['image_url'];
+                    String? finalImageUrl;
+                    if (rawImageUrl != null && rawImageUrl.isNotEmpty) {
+                      if (rawImageUrl.startsWith('/uploads')) {
+                        finalImageUrl = '${ApiService.baseUrl}$rawImageUrl';
+                      } else {
+                        finalImageUrl = rawImageUrl;
+                      }
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: PostCard(
+                        postData: post,
+                        finalImageUrl: finalImageUrl,
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ] else ...[
             const Center(
@@ -255,19 +312,89 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildPostCard({
-    required String name,
-    required String timeLocation,
-    required String xp,
-    required IconData tagIcon,
-    required String tagText,
-    required Color tagColor,
-    required Color tagBgColor,
-    required String content,
-    required String likes,
-    required String comments,
-    bool isLiked = false,
-  }) {
+}
+
+class PostCard extends StatefulWidget {
+  final Map<String, dynamic> postData;
+  final String? finalImageUrl;
+
+  const PostCard({
+    Key? key,
+    required this.postData,
+    this.finalImageUrl,
+  }) : super(key: key);
+
+  @override
+  State<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<PostCard> {
+  late int likesCount;
+  late int commentsCount;
+  late bool isLiked;
+  bool isLiking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    likesCount = int.tryParse(widget.postData['likes_count']?.toString() ?? '0') ?? 0;
+    commentsCount = int.tryParse(widget.postData['comments_count']?.toString() ?? '0') ?? 0;
+    isLiked = widget.postData['is_liked_by_me'] == true;
+  }
+
+  Future<void> _toggleLike() async {
+    if (isLiking) return;
+    setState(() => isLiking = true);
+
+    try {
+      final postId = widget.postData['id'];
+      if (isLiked) {
+        final response = await ApiService.delete('/api/posts/$postId/like');
+        if (response.statusCode == 200) {
+          setState(() {
+            isLiked = false;
+            likesCount--;
+          });
+        }
+      } else {
+        final response = await ApiService.post('/api/posts/$postId/like', {});
+        if (response.statusCode == 200) {
+          setState(() {
+            isLiked = true;
+            likesCount++;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error toggling like: $e');
+    } finally {
+      setState(() => isLiking = false);
+    }
+  }
+
+  void _showCommentSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CommentSheet(
+        postId: widget.postData['id'],
+        onCommentCountChanged: (int newCount) {
+          setState(() {
+            commentsCount = newCount;
+          });
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = widget.postData['author_name'] ?? 'Unknown User';
+    final content = widget.postData['caption'] ?? '';
+    final tagText = widget.postData['tag_text'] ?? 'Activity';
+    final imageUrl = widget.finalImageUrl;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -303,9 +430,9 @@ class _HomePageState extends State<HomePage> {
                         name,
                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF191C1A)),
                       ),
-                      Text(
-                        timeLocation,
-                        style: const TextStyle(color: Color(0xFF42493E), fontSize: 12),
+                      const Text(
+                        'Just now',
+                        style: TextStyle(color: Color(0xFF42493E), fontSize: 12),
                       ),
                     ],
                   ),
@@ -321,9 +448,9 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     const Icon(Icons.stars, color: Colors.white, size: 14),
                     const SizedBox(width: 4),
-                    Text(
-                      xp,
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    const Text(
+                      '+50 XP',
+                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -334,18 +461,18 @@ class _HomePageState extends State<HomePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: tagBgColor,
-              border: Border.all(color: tagColor.withOpacity(0.2)),
+              color: const Color(0xFFE7E9E4),
+              border: Border.all(color: const Color(0xFF2D5934).withOpacity(0.2)),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(tagIcon, size: 16, color: tagColor),
+                const Icon(Icons.park, size: 16, color: Color(0xFF2D5934)),
                 const SizedBox(width: 6),
                 Text(
                   tagText,
-                  style: TextStyle(color: tagColor, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Color(0xFF2D5934), fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -356,46 +483,256 @@ class _HomePageState extends State<HomePage> {
             style: const TextStyle(fontSize: 16, color: Color(0xFF191C1A), height: 1.5),
           ),
           const SizedBox(height: 12),
-          Container(
-            height: 220,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFECEFEA),
+          if (imageUrl != null && imageUrl.isNotEmpty)
+            ClipRRect(
               borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                height: 220,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 220,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECEFEA),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.image_not_supported, size: 48, color: Color(0xFFC2C9BB)),
+                ),
+              ),
+            )
+          else
+            Container(
+              height: 220,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFFECEFEA),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.image, size: 48, color: Color(0xFFC2C9BB)),
             ),
-            child: const Icon(Icons.image, size: 48, color: Color(0xFFC2C9BB)),
-          ),
           const SizedBox(height: 16),
           Divider(height: 1, color: const Color(0xFFC2C9BB).withOpacity(0.2)),
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(
-                isLiked ? Icons.eco : Icons.eco_outlined,
-                color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
-                size: 22,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                likes,
-                style: TextStyle(
-                  color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+              InkWell(
+                onTap: _toggleLike,
+                child: Row(
+                  children: [
+                    Icon(
+                      isLiked ? Icons.eco : Icons.eco_outlined,
+                      color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      likesCount.toString(),
+                      style: TextStyle(
+                        color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 24),
-              const Icon(Icons.chat_bubble_outline, color: Color(0xFF42493E), size: 22),
-              const SizedBox(width: 8),
-              Text(
-                comments,
-                style: const TextStyle(color: Color(0xFF42493E), fontWeight: FontWeight.w600, fontSize: 12),
+              InkWell(
+                onTap: _showCommentSheet,
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_bubble_outline, color: Color(0xFF42493E), size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      commentsCount.toString(),
+                      style: const TextStyle(color: Color(0xFF42493E), fontWeight: FontWeight.w600, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
               const Spacer(),
               const Icon(Icons.share, color: Color(0xFF42493E), size: 22),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class CommentSheet extends StatefulWidget {
+  final int postId;
+  final Function(int) onCommentCountChanged;
+
+  const CommentSheet({
+    Key? key,
+    required this.postId,
+    required this.onCommentCountChanged,
+  }) : super(key: key);
+
+  @override
+  State<CommentSheet> createState() => _CommentSheetState();
+}
+
+class _CommentSheetState extends State<CommentSheet> {
+  List<dynamic> comments = [];
+  bool isLoading = true;
+  bool isPosting = false;
+  final TextEditingController _commentController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchComments();
+  }
+
+  Future<void> _fetchComments() async {
+    try {
+      final response = await ApiService.get('/api/posts/${widget.postId}/comments');
+      if (response.statusCode == 200) {
+        setState(() {
+          comments = jsonDecode(response.body) as List<dynamic>;
+          isLoading = false;
+        });
+        widget.onCommentCountChanged(comments.length);
+      }
+    } catch (e) {
+      debugPrint('Failed to load comments: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _postComment() async {
+    final content = _commentController.text.trim();
+    if (content.isEmpty || isPosting) return;
+
+    setState(() => isPosting = true);
+    try {
+      final response = await ApiService.post('/api/posts/${widget.postId}/comment', {'content': content});
+      if (response.statusCode == 201) {
+        _commentController.clear();
+        await _fetchComments();
+      }
+    } catch (e) {
+      debugPrint('Failed to post comment: $e');
+    } finally {
+      setState(() => isPosting = false);
+    }
+  }
+
+  Future<void> _deleteComment(int commentId) async {
+    try {
+      final response = await ApiService.delete('/api/posts/${widget.postId}/comment/$commentId');
+      if (response.statusCode == 200) {
+        await _fetchComments();
+      }
+    } catch (e) {
+      debugPrint('Failed to delete comment: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Color(0xFFC2C9BB),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Text(
+              'Comments',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
+            ),
+            const Divider(),
+            if (isLoading)
+              const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: CircularProgressIndicator(),
+              )
+            else if (comments.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text('No comments yet. Be the first to comment!'),
+              )
+            else
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: comments.length,
+                  itemBuilder: (context, index) {
+                    final comment = comments[index];
+                    return ListTile(
+                      leading: const CircleAvatar(
+                        radius: 16,
+                        backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+                      ),
+                      title: Text(
+                        comment['author_name'] ?? 'Unknown User',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      subtitle: Text(comment['content'] ?? ''),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.grey),
+                        onPressed: () => _deleteComment(comment['id']),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _commentController,
+                      decoration: InputDecoration(
+                        hintText: 'Add a comment...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFECEFEA),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _postComment(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  isPosting
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.send, color: Color(0xFF154212)),
+                          onPressed: _postComment,
+                        ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

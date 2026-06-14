@@ -11,7 +11,8 @@ import 'ecowrap_share.dart';
 import '../../../core/network/api_service.dart';
 
 class EcoWrapStoryScreen extends StatefulWidget {
-  const EcoWrapStoryScreen({super.key});
+  final String? userId;
+  const EcoWrapStoryScreen({super.key, this.userId});
  
   @override
   State<EcoWrapStoryScreen> createState() => _EcoWrapStoryScreenState();
@@ -25,7 +26,6 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
   Timer? _pageTimer;
   final int _secondsPerPage = 4;
   late AnimationController _progressController;
-  final ScreenshotController _screenshotController = ScreenshotController();
 
   Map<String, dynamic>? _wrappedData;
   bool _isLoading = true;
@@ -51,14 +51,11 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
       final prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('token'); // Uses the authentication login session key
 
-      // 2. Inject the Bearer token directly inside the ApiService request headers matrix
-      final response = await ApiService.get(
-        '/api/users/wrapped',
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final String url = widget.userId == null
+          ? '/api/users/wrapped'
+          : '/api/users/${widget.userId}/wrapped';
+
+      final response = await ApiService.get(url);
 
       if (response.statusCode != 200) {
         throw Exception('Server error: ${response.statusCode}');
@@ -216,7 +213,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
                 top: MediaQuery.of(context).padding.top + 48,
                 left: 0,
                 right: 0,
-                bottom: 0,
+                bottom: _currentPage == _totalPages - 1 ? 140 : 0,
                 child: Row(
                   children: [
                     Expanded(
@@ -234,20 +231,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
                   ],
                 ),
               ),
-              // offscreen share card for screenshot capture
-              Positioned(
-                left: -9999,
-                child: Screenshot(
-                  controller: _screenshotController,
-                  child: EcoWrapShareCard(
-                    tierName: _wrappedData?['tier_name'] ?? 'Seed',
-                    ranking: _wrappedData?['ranking'] ?? 0,
-                    postCount: _wrappedData?['post_count'] ?? 0,
-                    treeCount: _wrappedData?['tree_count'] ?? 0,
-                    totalXp: _wrappedData?['total_xp'] ?? 0,
-                  ),
-                ),
-              ),
+              // Screenshot container removed in favor of captureFromWidget
             ],
           ),
         ),
@@ -467,13 +451,13 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
             ),
           ),
           const SizedBox(height: 12),
+          // 1. Share in App Feed button
           SizedBox(
             width: double.infinity,
-            height: 56,
+            height: 50,
             child: ElevatedButton.icon(
-              onPressed: () => EcoWrapShare.shareWrapped(
+              onPressed: () => EcoWrapShare.shareInApp(
                 context: context,
-                screenshotController: _screenshotController,
                 tierName: _wrappedData?['tier_name'] ?? 'Seed',
                 ranking: _wrappedData?['ranking'] ?? 0,
                 postCount: _wrappedData?['post_count'] ?? 0,
@@ -486,11 +470,40 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
+                elevation: 0,
               ),
-              icon: const Icon(Icons.share_rounded),
+              icon: const Icon(Icons.forum_rounded, size: 20),
               label: const Text(
-                'Share Your Story',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                'Share in App Feed',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 2. Download as PNG button
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => EcoWrapShare.downloadPng(
+                context: context,
+                tierName: _wrappedData?['tier_name'] ?? 'Seed',
+                ranking: _wrappedData?['ranking'] ?? 0,
+                postCount: _wrappedData?['post_count'] ?? 0,
+                treeCount: _wrappedData?['tree_count'] ?? 0,
+                totalXp: _wrappedData?['total_xp'] ?? 0,
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: primaryGreen,
+                side: BorderSide(color: primaryGreen, width: 2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              icon: const Icon(Icons.download_rounded, size: 20),
+              label: const Text(
+                'Download as PNG',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),
           ),

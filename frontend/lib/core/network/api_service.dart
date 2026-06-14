@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -56,6 +57,22 @@ class ApiService {
     }
   }
 
+  /// Sends a PUT request to the backend.
+  static Future<http.Response> put(String endpoint, Map<String, dynamic> body) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (userToken != null) 'Authorization': 'Bearer $userToken',
+    };
+
+    try {
+      return await http.put(url, headers: headers, body: jsonEncode(body));
+    } catch (e) {
+      throw Exception('Network execution fault: $e');
+    }
+  }
+
   /// Sends a DELETE request to the backend.
   static Future<http.Response> delete(String endpoint) async {
     final url = Uri.parse('$baseUrl$endpoint');
@@ -83,6 +100,25 @@ class ApiService {
 
     request.fields.addAll(fields);
     request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+
+    try {
+      return await request.send();
+    } catch (e) {
+      throw Exception('Network execution fault: $e');
+    }
+  }
+
+  /// Uploads an image using raw bytes (useful on Web and to avoid temp files).
+  static Future<http.StreamedResponse> uploadImageBytes(String endpoint, Uint8List bytes, String filename, Map<String, String> fields) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final request = http.MultipartRequest('POST', url);
+
+    if (userToken != null) {
+      request.headers['Authorization'] = 'Bearer $userToken';
+    }
+
+    request.fields.addAll(fields);
+    request.files.add(http.MultipartFile.fromBytes('image', bytes, filename: filename));
 
     try {
       return await request.send();

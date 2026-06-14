@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../../../../core/network/api_service.dart';
 import '../../../profile/presentation/profile_screen.dart';
 import 'camera_screen.dart';
+import 'post_detail_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -16,13 +17,20 @@ class _HomePageState extends State<HomePage> {
   int _selectedNavIndex = 0;
   bool _isCommunityFeed = true;
   late Future<List<dynamic>> _feedFuture;
+  late Future<List<dynamic>> _friendsFeedFuture;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+
+  int _notificationCount = 0;
+  List<dynamic> _pendingRequests = [];
+  List<dynamic> _appNotifications = [];
 
   @override
   void initState() {
     super.initState();
     _feedFuture = _fetchFeed();
+    _friendsFeedFuture = _fetchFriendsFeed();
+    _fetchNotificationsAndRequests();
   }
 
   Future<void> _searchBuddy(String query) async {
@@ -193,6 +201,357 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _fetchNotificationsAndRequests() async {
+    try {
+      final requestsRes = await ApiService.get('/api/friends/requests');
+      final notificationsRes = await ApiService.get('/api/notifications');
+
+      if (requestsRes.statusCode == 200 && notificationsRes.statusCode == 200) {
+        final pending = jsonDecode(requestsRes.body) as List<dynamic>;
+        final notifications = jsonDecode(notificationsRes.body) as List<dynamic>;
+
+        int unreadNotifsCount = notifications.where((n) => n['is_read'] == false).length;
+        int totalUnread = pending.length + unreadNotifsCount;
+
+        if (mounted) {
+          setState(() {
+            _pendingRequests = pending;
+            _appNotifications = notifications;
+            _notificationCount = totalUnread;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching notifications/requests: $e');
+    }
+  }
+
+  Future<List<dynamic>> _fetchFriendsFeed() async {
+    final response = await ApiService.get('/api/feed/friends');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load friends feed');
+    }
+  }
+
+  String _formatRelativeTime(String? timestampStr) {
+    if (timestampStr == null || timestampStr.isEmpty) return 'Just now';
+    try {
+      final dateTime = DateTime.parse(timestampStr).toLocal();
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+
+      if (difference.inSeconds < 60) {
+        return 'Just now';
+      } else if (difference.inMinutes < 60) {
+        return '${difference.inMinutes}m ago';
+      } else if (difference.inHours < 24) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inDays < 30) {
+        return '${difference.inDays}d ago';
+      } else {
+        return '${(difference.inDays / 30).floor()}mo ago';
+      }
+    } catch (e) {
+      return 'Just now';
+    }
+  }
+
+  void _showNotificationsDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return DefaultTabController(
+              length: 2,
+              child: Dialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: Column(
+                    children: [
+                      Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8FAF5),
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        child: const TabBar(
+                          labelColor: Color(0xFF154212),
+                          unselectedLabelColor: Color(0xFF72796E),
+                          indicatorColor: Color(0xFF154212),
+                          tabs: [
+                            Tab(
+                              icon: Icon(Icons.person_add_outlined),
+                              text: 'Friend Requests',
+                            ),
+                            Tab(
+                              icon: Icon(Icons.notifications_none_outlined),
+                              text: 'Notifications',
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            _buildFriendRequestsTab(context, setModalState),
+                            _buildAppNotificationsTab(context, setModalState),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFriendRequestsTab(BuildContext modalContext, StateSetter setModalState) {
+    if (_pendingRequests.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.people_outline, size: 48, color: Color(0xFF72796E)),
+              SizedBox(height: 16),
+              Text(
+                'No pending requests',
+                style: TextStyle(color: Color(0xFF72796E), fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _pendingRequests.length,
+      separatorBuilder: (context, index) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final request = _pendingRequests[index];
+        final requesterName = request['requester_name'] ?? 'Eco Warrior';
+        final requesterUid = request['requester_uid'];
+        final timeStr = request['created_at'];
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: const Color(0xFF154212),
+                radius: 20,
+                child: Text(
+                  requesterName.isNotEmpty ? requesterName[0].toUpperCase() : 'E',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      requesterName,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Text(
+                      _formatRelativeTime(timeStr),
+                      style: const TextStyle(color: Color(0xFF72796E), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.check_circle, color: Color(0xFF154212)),
+                onPressed: () async {
+                  await _handleRequestAction(modalContext, requesterUid, 'accept', setModalState);
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.cancel, color: Color(0xFFBA1A1A)),
+                onPressed: () async {
+                  await _handleRequestAction(modalContext, requesterUid, 'decline', setModalState);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleRequestAction(BuildContext modalContext, String requesterUid, String action, StateSetter setModalState) async {
+    final url = '/api/friends/$action';
+    try {
+      final res = await ApiService.post(url, {'requesterUid': requesterUid});
+      if (res.statusCode == 200) {
+        await _fetchNotificationsAndRequests();
+        if (modalContext.mounted) {
+          setModalState(() {});
+        }
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Friend request ${action}ed successfully!'),
+              backgroundColor: action == 'accept' ? const Color(0xFF154212) : const Color(0xFFBA1A1A),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error handling request action: $e');
+    }
+  }
+
+  Widget _buildAppNotificationsTab(BuildContext modalContext, StateSetter setModalState) {
+    if (_appNotifications.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.notifications_off_outlined, size: 48, color: Color(0xFF72796E)),
+              SizedBox(height: 16),
+              Text(
+                'No notifications yet',
+                style: TextStyle(color: Color(0xFF72796E), fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _appNotifications.length,
+      separatorBuilder: (context, index) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final notif = _appNotifications[index];
+        final id = notif['id'];
+        final title = notif['title'] ?? 'Notification';
+        final message = notif['message'] ?? '';
+        final isRead = notif['is_read'] == true;
+        final type = notif['type'] ?? 'info';
+        final timeStr = notif['created_at'];
+
+        IconData typeIcon = Icons.notifications;
+        Color iconColor = const Color(0xFF154212);
+
+        if (type == 'like') {
+          typeIcon = Icons.favorite;
+          iconColor = const Color(0xFFBA1A1A);
+        } else if (type == 'comment') {
+          typeIcon = Icons.comment;
+          iconColor = const Color(0xFF154212);
+        } else if (type == 'promotion') {
+          typeIcon = Icons.stars;
+          iconColor = Colors.orange;
+        } else if (type == 'friend_request') {
+          typeIcon = Icons.person_add;
+          iconColor = Colors.blue;
+        } else if (type == 'friend_accepted') {
+          typeIcon = Icons.people;
+          iconColor = const Color(0xFF154212);
+        }
+
+        return InkWell(
+          onTap: () async {
+            if (!isRead) {
+              try {
+                final res = await ApiService.post('/api/notifications/$id/read', {});
+                if (res.statusCode == 200) {
+                  await _fetchNotificationsAndRequests();
+                  if (modalContext.mounted) {
+                    setModalState(() {});
+                  }
+                }
+              } catch (e) {
+                debugPrint('Error marking notification as read: $e');
+              }
+            }
+          },
+          child: Container(
+            color: isRead ? Colors.transparent : const Color(0xFF154212).withOpacity(0.05),
+            padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+            child: Row(
+              children: [
+                Icon(typeIcon, color: iconColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                                fontSize: 13,
+                                color: const Color(0xFF191C1A),
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _formatRelativeTime(timeStr),
+                            style: const TextStyle(color: Color(0xFF72796E), fontSize: 10),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        message,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isRead ? const Color(0xFF72796E) : const Color(0xFF191C1A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isRead)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(left: 8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF154212),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<List<dynamic>> _fetchFeed() async {
     final response = await ApiService.get('/api/feed/trending');
     if (response.statusCode == 200) {
@@ -205,7 +564,9 @@ class _HomePageState extends State<HomePage> {
   void _refreshFeed() {
     setState(() {
       _feedFuture = _fetchFeed();
+      _friendsFeedFuture = _fetchFriendsFeed();
     });
+    _fetchNotificationsAndRequests();
   }
 
   @override
@@ -260,20 +621,33 @@ class _HomePageState extends State<HomePage> {
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications_none, color: Color(0xFF154212)),
-                onPressed: () {},
+                onPressed: _showNotificationsDialog,
               ),
-              Positioned(
-                top: 14,
-                right: 14,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFBA1A1A),
-                    shape: BoxShape.circle,
+              if (_notificationCount > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFBA1A1A),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_notificationCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
-              )
+                )
             ],
           ),
           const SizedBox(width: 8),
@@ -347,11 +721,64 @@ class _HomePageState extends State<HomePage> {
               },
             ),
           ] else ...[
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Text('Friends feed is empty.'),
-              ),
+            FutureBuilder<List<dynamic>>(
+              future: _friendsFeedFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: CircularProgressIndicator(color: Color(0xFF154212)),
+                    ),
+                  );
+                } else if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text('Failed to load friends feed: ${snapshot.error}'),
+                          TextButton(
+                            onPressed: _refreshFeed,
+                            child: const Text('Retry'),
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Text('No posts from friends yet. Add some buddies!'),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: snapshot.data!.map((post) {
+                    String? rawImageUrl = post['image_url'];
+                    String? finalImageUrl;
+                    if (rawImageUrl != null && rawImageUrl.isNotEmpty) {
+                      if (rawImageUrl.startsWith('/uploads')) {
+                        finalImageUrl = '${ApiService.baseUrl}$rawImageUrl';
+                      } else {
+                        finalImageUrl = rawImageUrl;
+                      }
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: PostCard(
+                        postData: post,
+                        finalImageUrl: finalImageUrl,
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
             ),
           ],
         ],
@@ -707,7 +1134,16 @@ class _PostCardState extends State<PostCard> {
     final tagText = widget.postData['tag_text'] ?? 'Activity';
     final imageUrl = widget.finalImageUrl;
 
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PostDetailScreen(postData: widget.postData),
+          ),
+        );
+      },
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -915,9 +1351,11 @@ class _PostCardState extends State<PostCard> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
 }
+}
+
 
 class CommentSheet extends StatefulWidget {
   final int postId;

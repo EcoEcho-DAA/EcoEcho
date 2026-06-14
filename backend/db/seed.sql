@@ -21,7 +21,8 @@ insert into categories (id, name, xp_weight) values
 (2, 'Sustainable Transport', 30),
 (3, 'Recycling', 20),
 (4, 'Energy Saving', 20),
-(5, 'Cleanup Drive', 40)
+(5, 'Cleanup Drive', 40),
+(6, 'EcoWrapped 2026', 100)
 on conflict (id) do update set
     name = excluded.name,
     xp_weight = excluded.xp_weight;

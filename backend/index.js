@@ -81,7 +81,7 @@ async function optionalProtect(req, res, next) {
 
 // --- DYNAMIC ROUTES ---
 
-// 1. REGISTER A NEW USER
+// 1. REGISTER A NEW USER (FIXED TIER INITIALIZATION)
 app.post('/api/auth/register', async (req, res) => {
   const { name, username, email, password, environmentalScore, city, province } = req.body;
 
@@ -96,17 +96,19 @@ app.post('/api/auth/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
+    // 🌟 FIXED: Added current_tier_id to prevent profiles from loading as blank/null units
     const newUser = await pool.query(
-      `INSERT INTO users (username, email, password_hash, total_xp, city, province) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING uid, username, email, total_xp`,
+      `INSERT INTO users (username, email, password_hash, total_xp, city, province, current_tier_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING uid, username, email, total_xp, current_tier_id`,
       [
         finalUsername,
         email,
         passwordHash,
         environmentalScore || 100,
         city || 'Manila',
-        province || 'Metro Manila'
+        province || 'Metro Manila',
+        1 // 👈 Automatically seeds fresh accounts into baseline Tier 1
       ]
     );
 
@@ -174,8 +176,6 @@ app.get('/api/users/me', protect, async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
-
-// --- DYNAMIC ROUTES (CONTINUED) ---
 
 // 4. GET ECOWRAPPED SUMMARY FOR THE LOGGED-IN USER
 app.get('/api/users/wrapped', protect, async (req, res) => {
@@ -362,7 +362,7 @@ app.get('/api/feed/trending', optionalProtect, async (req, res) => {
   }
 });
 
-// 7b. POST /api/posts -> Creates a new post 
+// 7b. POST /api/posts -> Creates a new post with direct Supabase Storage integration
 const FLAGGED_TERMS = ['badword1', 'spamlink', 'toxicphrase'];
 app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
   const { caption, category_id } = req.body;
@@ -385,7 +385,7 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
         const ext = path.extname(req.file.originalname) || '.jpg';
         const filename = `${uniqueSuffix}${ext}`;
 
-        // Upload file buffer directly to Supabase Storage
+        // Upload file buffer directly to Supabase Cloud Storage Buckets
         const { data, error } = await supabase.storage
           .from(bucketName)
           .upload(filename, req.file.buffer, {
@@ -397,7 +397,7 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
           throw new Error(`Supabase storage error: ${error.message}`);
         }
 
-        // Retrieve the public URL
+        // Retrieve the cloud CDN destination link
         const { data: publicUrlData } = supabase.storage
           .from(bucketName)
           .getPublicUrl(filename);
@@ -548,128 +548,6 @@ app.get('/api/missions/daily', protect, async (req, res) => {
   }
 });
 
-
-
-// --- POST /api/posts/:id/vote (Relational Voting & Leaderboard) ---
-app.post('/api/posts/:id/vote', protect, async (req, res) => {
-  const postId = Number(req.params.id);
-  const { vote_direction } = req.body;
-
-  if (isNaN(postId)) {
-    return res.status(400).json({ error: 'Invalid post ID' });
-  }
-
-  if (vote_direction !== 'up' && vote_direction !== 'down') {
-    return res.status(400).json({ error: "vote_direction must be 'up' or 'down'" });
-  }
-
-  try {
-    // 1. Find the author (user_uid) of the target post ID
-    const postResult = await pool.query('SELECT user_uid FROM posts WHERE id = $1', [postId]);
-    if (postResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Post not found' });
-    }
-
-    const authorUid = postResult.rows[0].user_uid;
-    const change = vote_direction === 'up' ? 10 : -5;
-
-    // 2. Transactional database update: modify total_xp of author (ensuring it stays >= 0)
-    await pool.query(
-      `UPDATE users SET total_xp = GREATEST(0, total_xp + $1) WHERE uid = $2`,
-      [change, authorUid]
-    );
-
-    // 3. Immediately query users for uid and total_xp
-    const usersResult = await pool.query('SELECT uid, total_xp FROM users');
-
-    // 4. Recalculate standings using heap sort
-    const sortedStandings = runLeaderboardHeapSort(usersResult.rows);
-
-    // 5. Return updated root node of sorted heap (highest ranked user)
-    const rootNode = sortedStandings.length > 0 ? sortedStandings[0] : null;
-
-    return res.status(200).json(rootNode);
-  } catch (err) {
-    console.error('Error voting on post:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// --- NEW ROUTE: POST /api/reports/submit (Social Safety Reporting System) ---
-app.post('/api/reports/submit', protect, async (req, res) => {
-  const { post_id, reason } = req.body;
-
-  if (!post_id || !reason) {
-    return res.status(400).json({ error: 'post_id and reason are required' });
-  }
-
-  try {
-    const result = await pool.query(
-      `INSERT INTO post_reports (reporter_uid, post_id, reason, status)
-       VALUES ($1, $2, $3, 'pending_review')
-       RETURNING id, reporter_uid, post_id, reason, status`,
-      [req.userId, post_id, reason]
-    );
-
-    return res.status(201).json({
-      success: true,
-      message: 'Report submitted successfully.',
-      report: result.rows[0]
-    });
-  } catch (err) {
-    console.error('Error submitting report:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// --- NEW ROUTE: POST /api/posts/verify-mission (User Mission Verification) ---
-app.post('/api/posts/verify-mission', protect, async (req, res) => {
-  const targetMissionId = Number(req.body.target_mission_id);
-  const userId = req.userId;
-
-  if (isNaN(targetMissionId)) {
-    return res.status(400).json({ error: 'target_mission_id must be a valid number' });
-  }
-
-  try {
-    // 1. Database Context Retrieval: Pull completed missions for this user
-    const completedResult = await pool.query(
-      `SELECT mission_id FROM user_missions WHERE user_uid = $1`,
-      [userId]
-    );
-
-    // Map database result into a flat array of completed task integers
-    const completedMissionIds = completedResult.rows.map(row => Number(row.mission_id));
-
-    // 2. Algorithmic DFS Traversal: Check prerequisites recursively
-    const isEligible = verifyMissionPrerequisites(targetMissionId, completedMissionIds);
-
-    if (!isEligible) {
-      // Return 403 Forbidden if prerequisites are missing
-      return res.status(403).json({
-        status: "Progression Denied",
-        message: "Prerequisite structural tasks for this tier branch are incomplete."
-      });
-    }
-
-    // 3. State Enforcement Action: Log mission completion
-    await pool.query(
-      `INSERT INTO user_missions (user_uid, mission_id, completed_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (user_uid, mission_id) DO NOTHING`,
-      [userId, targetMissionId]
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: "Mission verification successful. Prerequisite verification passed and mission progress recorded."
-    });
-  } catch (err) {
-    console.error('Error verifying mission:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
 // --- INFRASTRUCTURE CONFIG ---
 app.get('/health', async (_req, res) => {
   try {
@@ -701,9 +579,7 @@ async function start() {
     console.log('[INIT WARNING] post_reports check skipped:', err.message);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`EcoEcho API running live on port ${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`EcoEcho API running live on port ${PORT}`));
 }
 
 start().catch((err) => {

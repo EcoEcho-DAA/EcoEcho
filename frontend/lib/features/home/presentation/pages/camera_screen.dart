@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'preview_screen.dart';
+import 'dart:typed_data';
 
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -142,17 +143,21 @@ class _CameraScreenState extends State<CameraScreen> {
 
                             if (!mounted) return;
 
+                            final Uint8List bytes = await image.readAsBytes();
+
+                            if (!mounted) return;
+
                             final uploadSuccess = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => PreviewScreen(
-                                  imagePath: image.path,
-                                  missionId: widget.missionId,
-                                  categoryId: widget.categoryId,
-                                  isProfilePicMode: widget.isProfilePicMode,
-                                ),
-                              ),
-                            );
+                               context,
+                               MaterialPageRoute(
+                                 builder: (context) => PreviewScreen(
+                                   imageBytes: bytes,
+                                   missionId: widget.missionId,
+                                   categoryId: widget.categoryId,
+                                   isProfilePicMode: widget.isProfilePicMode,
+                                 ),
+                               ),
+                             );
                             if (uploadSuccess == true && mounted) {
                               Navigator.pop(context, true);
                             }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 import '../../home/presentation/pages/preview_screen.dart';
+import '../../home/presentation/pages/camera_screen.dart';
+import 'package:camera/camera.dart';
 import 'bloc/missions_bloc.dart';
 import 'bloc/missions_event.dart';
 import 'bloc/missions_state.dart';
@@ -47,9 +50,24 @@ class MissionBoardView extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF154212)),
               title: const Text('Take Photo'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(sheetContext);
-                _pickImage(context, ImageSource.camera, missionId, categoryId, isProfilePicMode, onSuccess);
+                final cameras = await availableCameras();
+                if (!context.mounted) return;
+                final uploadSuccess = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CameraScreen(
+                      cameras: cameras,
+                      missionId: missionId,
+                      categoryId: categoryId,
+                      isProfilePicMode: isProfilePicMode,
+                    ),
+                  ),
+                );
+                if (uploadSuccess == true && onSuccess != null) {
+                  onSuccess();
+                }
               },
             ),
             ListTile(
@@ -79,13 +97,15 @@ class MissionBoardView extends StatelessWidget {
       final XFile? image = await picker.pickImage(source: source);
       if (image == null) return;
 
+      final Uint8List bytes = await image.readAsBytes();
+
       if (!context.mounted) return;
 
       final uploadSuccess = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => PreviewScreen(
-            imagePath: image.path,
+            imageBytes: bytes,
             missionId: missionId,
             categoryId: categoryId,
             isProfilePicMode: isProfilePicMode,
@@ -451,7 +471,7 @@ class MissionBoardView extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(18.0),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Icon Badge
             Container(
@@ -543,16 +563,15 @@ class MissionBoardView extends StatelessWidget {
                   backgroundColor: const Color(0xFF154212),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  minimumSize: const Size(110, 40),
                 ),
                 child: const Text(
                   'Upload Photo',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

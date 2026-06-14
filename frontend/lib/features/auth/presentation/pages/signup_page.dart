@@ -1,5 +1,6 @@
 import 'package:frontend/features/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:ui';
 import '../bloc/auth_bloc.dart';
@@ -94,7 +95,16 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.eco, size: 64, color: colorScheme.primary),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    width: 120,
+                    height: 120,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                      Icons.eco,
+                      size: 64,
+                      color: colorScheme.primary,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Join the Movement',

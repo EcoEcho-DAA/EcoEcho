@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:shared_preferences/shared_preferences.dart';  
 import 'ecowrap_trophy_widget.dart';
@@ -428,8 +429,8 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
         children: [
           Image.asset(
             'assets/images/logo.png',
-            width: 44,
-            height: 44,
+            width: 120,
+            height: 120,
           ),
           const SizedBox(height: 8),
           const Text(

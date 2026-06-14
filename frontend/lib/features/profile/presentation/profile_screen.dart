@@ -290,13 +290,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     return Column(
                       children: postSnapshot.data!.map((post) {
+                        String? rawImageUrl = post['image_url'];
+                        String? finalImageUrl;
+                        if (rawImageUrl != null && rawImageUrl.isNotEmpty) {
+                          if (rawImageUrl.startsWith('/uploads')) {
+                            finalImageUrl = '${ApiService.baseUrl}$rawImageUrl';
+                          } else {
+                            finalImageUrl = rawImageUrl;
+                          }
+                        }
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16.0),
                           child: _buildProfilePostCard(
                             timeLocation: 'Just now',
                             tagText: post['tag_text'] ?? 'Activity',
                             content: post['caption'] ?? '',
-                            imageUrl: post['image_url'],
+                            imageUrl: finalImageUrl,
                           ),
                         );
                       }).toList(),

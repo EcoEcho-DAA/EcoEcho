@@ -148,6 +148,16 @@ class _HomePageState extends State<HomePage> {
 
                 return Column(
                   children: snapshot.data!.map((post) {
+                    String? rawImageUrl = post['image_url'];
+                    String? finalImageUrl;
+                    if (rawImageUrl != null && rawImageUrl.isNotEmpty) {
+                      if (rawImageUrl.startsWith('/uploads')) {
+                        finalImageUrl = '${ApiService.baseUrl}$rawImageUrl';
+                      } else {
+                        finalImageUrl = rawImageUrl;
+                      }
+                    }
+
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: _buildPostCard(
@@ -161,7 +171,7 @@ class _HomePageState extends State<HomePage> {
                         content: post['caption'] ?? '',
                         likes: '0',
                         comments: '0',
-                        imageUrl: post['image_url'],
+                        imageUrl: finalImageUrl,
                       ),
                     );
                   }).toList(),

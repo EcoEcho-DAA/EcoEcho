@@ -36,12 +36,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
         case 'Cleanup Drive': categoryId = 5; break;
       }
 
-      final dummyImageUrl = 'https://picsum.photos/400/300';
-      
-      final response = await ApiService.post('/api/posts', {
+      final response = await ApiService.uploadImage('/api/posts', widget.imagePath, {
         'caption': _captionController.text,
-        'category_id': categoryId,
-        'image_url': dummyImageUrl,
+        'category_id': categoryId.toString(),
       });
 
       if (!mounted) return;
@@ -54,7 +51,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
           ),
         );
       } else {
-        throw Exception('Failed to upload: ${response.body}');
+        final respBody = await response.stream.bytesToString();
+        throw Exception('Failed to upload: $respBody');
       }
     } catch (e) {
       if (!mounted) return;

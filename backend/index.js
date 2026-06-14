@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
 const pool = require('./src/config/db');
 const redisClient = require('./src/config/redisClient');
 const { getWrappedDataForUser } = require('./src/controllers/wrappedQueriesController');
@@ -13,6 +15,21 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+// Configure Multer Storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, 'public/uploads'));
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    // Use .jpg as fallback if extension can't be determined
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, uniqueSuffix + ext);
+  }
+});
+const upload = multer({ storage: storage });
 
 // --- AUTHENTICATION MIDDLEWARE ---
 async function protect(req, res, next) {
@@ -191,8 +208,16 @@ app.get('/api/feed/trending', async (req, res) => {
 });
 
 // 7b. POST /api/posts -> Creates a new post
-app.post('/api/posts', protect, async (req, res) => {
-  const { caption, category_id, image_url } = req.body;
+app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
+  const { caption, category_id } = req.body;
+  let image_url = null;
+
+  if (req.file) {
+    image_url = '/uploads/' + req.file.filename;
+  } else {
+    image_url = req.body.image_url || 'https://picsum.photos/400/300';
+  }
+
   try {
     const newPost = await pool.query(
       `INSERT INTO posts (user_uid, caption, category_id, image_url)

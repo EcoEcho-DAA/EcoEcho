@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS activity_logs (
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- eco wrapped yearly snapshots
 CREATE TABLE IF NOT EXISTS eco_wrapped (
     id              SERIAL PRIMARY KEY,         				                        -- auto-incrementing unique snapshot id
     user_uid        UUID NOT NULL REFERENCES users (uid) ON DELETE CASCADE,             -- fk to the user this snapshot belongs to

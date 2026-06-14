@@ -55,4 +55,23 @@ class ApiService {
       throw Exception('Network execution fault: $e');
     }
   }
+
+  /// Uploads an image using a multipart form request.
+  static Future<http.StreamedResponse> uploadImage(String endpoint, String imagePath, Map<String, String> fields) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final request = http.MultipartRequest('POST', url);
+
+    if (userToken != null) {
+      request.headers['Authorization'] = 'Bearer $userToken';
+    }
+
+    request.fields.addAll(fields);
+    request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+
+    try {
+      return await request.send();
+    } catch (e) {
+      throw Exception('Network execution fault: $e');
+    }
+  }
 }

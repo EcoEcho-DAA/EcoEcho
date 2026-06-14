@@ -56,6 +56,22 @@ class ApiService {
     }
   }
 
+  /// Sends a DELETE request to the backend.
+  static Future<http.Response> delete(String endpoint) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (userToken != null) 'Authorization': 'Bearer $userToken',
+    };
+
+    try {
+      return await http.delete(url, headers: headers);
+    } catch (e) {
+      throw Exception('Network execution fault: $e');
+    }
+  }
+
   /// Uploads an image using a multipart form request.
   static Future<http.StreamedResponse> uploadImage(String endpoint, String imagePath, Map<String, String> fields) async {
     final url = Uri.parse('$baseUrl$endpoint');

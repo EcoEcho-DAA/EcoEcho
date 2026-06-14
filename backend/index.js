@@ -42,6 +42,18 @@ async function protect(req, res, next) {
   }
 }
 
+async function optionalProtect(req, res, next) {
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.userId = decoded.id;
+    } catch (error) { }
+  }
+  return next();
+}
+
 // --- DYNAMIC ROUTES ---
 
 // 1. REGISTER A NEW USER
@@ -183,14 +195,19 @@ app.get('/api/challenges/daily', protect, async (req, res) => {
 });
 
 // 7. GET /api/feed/trending -> Satisfies the community social impact feed
-app.get('/api/feed/trending', async (req, res) => {
+app.get('/api/feed/trending', optionalProtect, async (req, res) => {
   try {
+    const userId = req.userId || null;
     const { rows } = await pool.query(
-      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text
+      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me
        FROM posts p
        INNER JOIN users u ON p.user_uid = u.uid
        LEFT JOIN categories c ON p.category_id = c.id
-       ORDER BY p.created_at DESC`
+       ORDER BY p.created_at DESC`,
+      [userId]
     );
     return res.status(200).json(rows);
   } catch (err) {
@@ -273,7 +290,10 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
 app.get('/api/users/me/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text
+      `SELECT p.id, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
+        EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_uid = $1) as is_liked_by_me
        FROM posts p
        INNER JOIN users u ON p.user_uid = u.uid
        LEFT JOIN categories c ON p.category_id = c.id
@@ -285,6 +305,81 @@ app.get('/api/users/me/posts', protect, async (req, res) => {
   } catch (err) {
     console.error('GET /api/users/me/posts error:', err);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- LIKES AND COMMENTS ---
+
+app.post('/api/posts/:id/like', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    await pool.query(
+      'INSERT INTO post_likes (post_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [postId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/posts/:id/like', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    await pool.query(
+      'DELETE FROM post_likes WHERE post_id = $1 AND user_uid = $2',
+      [postId, req.userId]
+    );
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/posts/:id/comments', async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { rows } = await pool.query(
+      `SELECT pc.id, pc.content, pc.created_at, pc.user_uid, u.username as author_name 
+       FROM post_comments pc 
+       JOIN users u ON pc.user_uid = u.uid 
+       WHERE pc.post_id = $1 
+       ORDER BY pc.created_at ASC`,
+      [postId]
+    );
+    res.status(200).json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/posts/:id/comment', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { content } = req.body;
+    if (!content) return res.status(400).json({ error: 'Content is required' });
+
+    const { rows } = await pool.query(
+      'INSERT INTO post_comments (post_id, user_uid, content) VALUES ($1, $2, $3) RETURNING *',
+      [postId, req.userId, content]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/posts/:id/comment/:commentId', protect, async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const { rowCount } = await pool.query(
+      'DELETE FROM post_comments WHERE id = $1 AND post_id = $2 AND user_uid = $3',
+      [commentId, id, req.userId]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'Comment not found or not authorized' });
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

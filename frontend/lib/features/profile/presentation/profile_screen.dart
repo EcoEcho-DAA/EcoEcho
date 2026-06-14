@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:camera/camera.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/network/api_service.dart';
 import '../../ecowrap/presentation/ecowrap_story_screen.dart';
 import '../../home/presentation/pages/post_detail_screen.dart';
+import '../../home/presentation/pages/camera_screen.dart';
+import '../../home/presentation/pages/preview_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
@@ -17,6 +21,174 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late Future<Map<String, dynamic>> _profileFuture;
   late Future<List<dynamic>> _postsFuture;
   List<dynamic> _friendsList = [];
+
+  void _selectImageSource(BuildContext context, {int? missionId, int? categoryId, bool isProfilePicMode = false, VoidCallback? onSuccess}) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF154212)),
+              title: const Text('Take Photo'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(context, ImageSource.camera, missionId, categoryId, isProfilePicMode, onSuccess);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Color(0xFF154212)),
+              title: const Text('Upload from Gallery'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(context, ImageSource.gallery, missionId, categoryId, isProfilePicMode, onSuccess);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(
+    BuildContext context,
+    ImageSource source,
+    int? missionId,
+    int? categoryId,
+    bool isProfilePicMode,
+    VoidCallback? onSuccess,
+  ) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: source);
+      if (image == null) return;
+
+      if (!context.mounted) return;
+
+      final uploadSuccess = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PreviewScreen(
+            imagePath: image.path,
+            missionId: missionId,
+            categoryId: categoryId,
+            isProfilePicMode: isProfilePicMode,
+          ),
+        ),
+      );
+
+      if (uploadSuccess == true && onSuccess != null) {
+        onSuccess();
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  void _showReportAccountDialog() {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Report Account',
+          style: TextStyle(color: Color(0xFFBA1A1A), fontWeight: FontWeight.bold, fontFamily: 'Be Vietnam Pro'),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Help us understand what is wrong. Please provide a brief reason for reporting this account:',
+              style: TextStyle(fontSize: 14, color: Color(0xFF42493E)),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              maxLength: 100,
+              decoration: const InputDecoration(
+                hintText: 'Reason for report (e.g. spam, inappropriate content...)',
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFBA1A1A))),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(dialogContext),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFBA1A1A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Submit Report'),
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Please provide a reason for the report.')),
+                );
+                return;
+              }
+
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(dialogContext);
+
+              try {
+                final response = await ApiService.post('/api/users/report', {
+                  'target_user_uid': widget.userId,
+                  'reason': reason,
+                });
+
+                if (response.statusCode == 201) {
+                  navigator.pop();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Report submitted. Thank you for keeping EcoEcho safe.'),
+                      backgroundColor: Color(0xFF154212),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                } else {
+                  final errData = jsonDecode(response.body);
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(errData['error'] ?? 'Failed to submit report.')),
+                  );
+                }
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getTierIcon(String tierName) {
+    final name = tierName.toLowerCase();
+    if (name.contains('seedling') || name == 'seed') {
+      return Icons.grass;
+    } else if (name.contains('sprout')) {
+      return Icons.spa;
+    } else if (name.contains('sapling')) {
+      return Icons.nature;
+    } else if (name.contains('thriving tree') || name.contains('ancient')) {
+      return Icons.forest;
+    }
+    return Icons.eco;
+  }
 
   @override
   void initState() {
@@ -94,6 +266,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         actions: [
+          if (widget.userId != null)
+            IconButton(
+              icon: const Icon(Icons.report_problem_outlined, color: Color(0xFFBA1A1A)),
+              tooltip: 'Report Account',
+              onPressed: _showReportAccountDialog,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF154212)),
             onPressed: () {
@@ -195,21 +373,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       children: [
                         // User Profile Initial avatar badge
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: const Color(0xFFE1E3DE),
-                          child: CircleAvatar(
-                            radius: 46,
-                            backgroundColor: const Color(0xFF154212),
-                            child: Text(
-                              initial,
-                              style: const TextStyle(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                fontFamily: 'Be Vietnam Pro',
+                        GestureDetector(
+                          onTap: widget.userId == null
+                              ? () => _selectImageSource(context, isProfilePicMode: true, onSuccess: () {
+                                  setState(() {
+                                    _profileFuture = _fetchProfileData();
+                                  });
+                                })
+                              : null,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundColor: const Color(0xFFE1E3DE),
+                                backgroundImage: data['profile_pic_url'] != null
+                                    ? NetworkImage(data['profile_pic_url'])
+                                    : null,
+                                child: data['profile_pic_url'] == null
+                                    ? CircleAvatar(
+                                        radius: 46,
+                                        backgroundColor: const Color(0xFF154212),
+                                        child: Text(
+                                          initial,
+                                          style: const TextStyle(
+                                            fontSize: 40,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            fontFamily: 'Be Vietnam Pro',
+                                          ),
+                                        ),
+                                      )
+                                    : null,
                               ),
-                            ),
+                              if (widget.userId == null)
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF154212),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -294,37 +507,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
                              ),
                            ],
                          ),
-                          if (widget.userId == null) ...[
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              onPressed: () => _showEditProfileDialog(data),
-                              icon: const Icon(Icons.edit, size: 14, color: Color(0xFF154212)),
-                              label: const Text(
-                                'Edit Profile',
-                                style: TextStyle(fontSize: 12, color: Color(0xFF154212), fontWeight: FontWeight.bold),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFF154212)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        // Biography Section
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              data['bio'] != null && data['bio'].toString().isNotEmpty
+                                  ? data['bio']
+                                  : (widget.userId == null
+                                      ? 'No bio added yet. Tap "Edit Profile" to add one!'
+                                      : 'No bio added.'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontStyle: data['bio'] == null || data['bio'].toString().isEmpty
+                                    ? FontStyle.italic
+                                    : FontStyle.normal,
+                                color: const Color(0xFF42493E),
+                                fontFamily: 'Inter',
                               ),
                             ),
-                          ] else ...[
-                            _buildFriendshipButton(data),
-                          ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (widget.userId == null) ...[
+                          OutlinedButton.icon(
+                            onPressed: () => _showEditProfileDialog(data),
+                            icon: const Icon(Icons.edit, size: 14, color: Color(0xFF154212)),
+                            label: const Text(
+                              'Edit Profile',
+                              style: TextStyle(fontSize: 12, color: Color(0xFF154212), fontWeight: FontWeight.bold),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFF154212)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            ),
+                          ),
+                        ] else ...[
+                          _buildFriendshipButton(data),
+                        ],
                          const SizedBox(height: 32),
                         // Progress Section
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              tier.toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF154212),
-                                letterSpacing: 1.1,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _getTierIcon(tier),
+                                  color: const Color(0xFF154212),
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  tier.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF154212),
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ],
                             ),
                             Text(
                               '$xp XP / $nextTierXp XP',
@@ -447,13 +695,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final usernameController = TextEditingController(text: currentData['username']);
     final cityController = TextEditingController(text: currentData['city']);
     final provinceController = TextEditingController(text: currentData['province']);
+    final regionController = TextEditingController(text: currentData['region'] ?? '');
+    final bioController = TextEditingController(text: currentData['bio'] ?? '');
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text(
-          'Edit Profile',
+          'Edit Profile & Bio',
           style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold, fontFamily: 'Be Vietnam Pro'),
         ),
         content: SingleChildScrollView(
@@ -486,6 +736,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: regionController,
+                decoration: const InputDecoration(
+                  labelText: 'Region',
+                  labelStyle: TextStyle(color: Color(0xFF154212)),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bioController,
+                maxLines: 3,
+                maxLength: 150,
+                decoration: const InputDecoration(
+                  labelText: 'Bio',
+                  labelStyle: TextStyle(color: Color(0xFF154212)),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
+                  border: OutlineInputBorder(),
+                ),
+              ),
             ],
           ),
         ),
@@ -505,6 +776,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final newUsername = usernameController.text.trim();
               final newCity = cityController.text.trim();
               final newProvince = provinceController.text.trim();
+              final newRegion = regionController.text.trim();
+              final newBio = bioController.text.trim();
 
               if (newUsername.isEmpty) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
@@ -517,10 +790,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final navigator = Navigator.of(dialogContext);
 
               try {
-                final response = await ApiService.put('/api/users/me', {
+                final response = await ApiService.put('/api/users/profile', {
                   'username': newUsername,
                   'city': newCity,
                   'province': newProvince,
+                  'region': newRegion,
+                  'bio': newBio,
                 });
 
                 if (response.statusCode == 200) {
@@ -985,19 +1260,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       CircleAvatar(
                         radius: 28,
                         backgroundColor: const Color(0xFFE1E3DE),
-                        child: CircleAvatar(
-                          radius: 25,
-                          backgroundColor: const Color(0xFF154212),
-                          child: Text(
-                            initial,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontFamily: 'Be Vietnam Pro',
-                            ),
-                          ),
-                        ),
+                        backgroundImage: friend['profile_pic_url'] != null
+                            ? NetworkImage(friend['profile_pic_url'])
+                            : null,
+                        child: friend['profile_pic_url'] == null
+                            ? CircleAvatar(
+                                radius: 25,
+                                backgroundColor: const Color(0xFF154212),
+                                child: Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontFamily: 'Be Vietnam Pro',
+                                  ),
+                                ),
+                              )
+                            : null,
                       ),
                       const SizedBox(height: 6),
                       SizedBox(

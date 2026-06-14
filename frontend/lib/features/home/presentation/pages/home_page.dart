@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:camera/camera.dart';
 import 'dart:convert';
 import '../../../../core/network/api_service.dart';
 import '../../../profile/presentation/profile_screen.dart';
 import 'camera_screen.dart';
 import 'post_detail_screen.dart';
+import 'preview_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -20,6 +22,7 @@ class _HomePageState extends State<HomePage> {
   late Future<List<dynamic>> _friendsFeedFuture;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+  String? _currentUserUid;
 
   int _notificationCount = 0;
   List<dynamic> _pendingRequests = [];
@@ -31,6 +34,87 @@ class _HomePageState extends State<HomePage> {
     _feedFuture = _fetchFeed();
     _friendsFeedFuture = _fetchFriendsFeed();
     _fetchNotificationsAndRequests();
+    _fetchCurrentUser();
+  }
+
+  Future<void> _fetchCurrentUser() async {
+    try {
+      final response = await ApiService.get('/api/users/me');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _currentUserUid = data['uid'];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching current user info: $e');
+    }
+  }
+
+  void _selectImageSource(BuildContext context, {int? missionId, int? categoryId, bool isProfilePicMode = false, VoidCallback? onSuccess}) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF154212)),
+              title: const Text('Take Photo'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(context, ImageSource.camera, missionId, categoryId, isProfilePicMode, onSuccess);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Color(0xFF154212)),
+              title: const Text('Upload from Gallery'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(context, ImageSource.gallery, missionId, categoryId, isProfilePicMode, onSuccess);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(
+    BuildContext context,
+    ImageSource source,
+    int? missionId,
+    int? categoryId,
+    bool isProfilePicMode,
+    VoidCallback? onSuccess,
+  ) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: source);
+      if (image == null) return;
+
+      if (!context.mounted) return;
+
+      final uploadSuccess = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PreviewScreen(
+            imagePath: image.path,
+            missionId: missionId,
+            categoryId: categoryId,
+            isProfilePicMode: isProfilePicMode,
+          ),
+        ),
+      );
+
+      if (uploadSuccess == true && onSuccess != null) {
+        onSuccess();
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
   }
 
   Future<void> _searchBuddy(String query) async {
@@ -95,10 +179,15 @@ class _HomePageState extends State<HomePage> {
                     CircleAvatar(
                       radius: 36,
                       backgroundColor: const Color(0xFF154212),
-                      child: Text(
-                        buddy['username'].toString().substring(0, 1).toUpperCase(),
-                        style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+                      backgroundImage: buddy['profile_pic_url'] != null
+                          ? NetworkImage(buddy['profile_pic_url'])
+                          : null,
+                      child: buddy['profile_pic_url'] == null
+                          ? Text(
+                              buddy['username'].toString().substring(0, 1).toUpperCase(),
+                              style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
+                            )
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -360,10 +449,15 @@ class _HomePageState extends State<HomePage> {
               CircleAvatar(
                 backgroundColor: const Color(0xFF154212),
                 radius: 20,
-                child: Text(
-                  requesterName.isNotEmpty ? requesterName[0].toUpperCase() : 'E',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
+                backgroundImage: request['profile_pic_url'] != null
+                    ? NetworkImage(request['profile_pic_url'])
+                    : null,
+                child: request['profile_pic_url'] == null
+                    ? Text(
+                        requesterName.isNotEmpty ? requesterName[0].toUpperCase() : 'E',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -714,6 +808,8 @@ class _HomePageState extends State<HomePage> {
                       child: PostCard(
                         postData: post,
                         finalImageUrl: finalImageUrl,
+                        currentUserUid: _currentUserUid,
+                        onDelete: _refreshFeed,
                       ),
                     );
                   }).toList(),
@@ -774,6 +870,8 @@ class _HomePageState extends State<HomePage> {
                       child: PostCard(
                         postData: post,
                         finalImageUrl: finalImageUrl,
+                        currentUserUid: _currentUserUid,
+                        onDelete: _refreshFeed,
                       ),
                     );
                   }).toList(),
@@ -821,24 +919,12 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () async {
-              try {
-                // Fetch the available cameras from the device hardware
-                final cameras = await availableCameras();
-
-                if (!mounted) return;
-
-                // Navigate to the custom camera interface
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CameraScreen(cameras: cameras),
-                  ),
-                );
-              } catch (e) {
-                debugPrint('Error fetching cameras: $e');
-              }
-            },
+            onPressed: () => _selectImageSource(context, onSuccess: () {
+              setState(() {
+                _feedFuture = _fetchFeed();
+                _friendsFeedFuture = _fetchFriendsFeed();
+              });
+            }),
             icon: const Icon(Icons.upload, size: 18),
             label: const Text('Upload Proof', style: TextStyle(fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
@@ -921,11 +1007,15 @@ class _HomePageState extends State<HomePage> {
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> postData;
   final String? finalImageUrl;
+  final String? currentUserUid;
+  final VoidCallback? onDelete;
 
   const PostCard({
     Key? key,
     required this.postData,
     this.finalImageUrl,
+    this.currentUserUid,
+    this.onDelete,
   }) : super(key: key);
 
   @override
@@ -939,6 +1029,104 @@ class _PostCardState extends State<PostCard> {
   late bool isLiked;
   late bool isDownvoted;
   bool isVoting = false;
+
+  Future<void> _deletePost() async {
+    final bool? confirm1 = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Delete Post?',
+          style: TextStyle(color: Color(0xFFBA1A1A), fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete this post? This will reverse the XP you earned from this post and any associated mission.',
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFBA1A1A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Delete'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm1 != true) return;
+
+    if (!mounted) return;
+
+    final bool? confirm2 = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Confirm Deletion (Step 2 of 2)',
+          style: TextStyle(color: Color(0xFFBA1A1A), fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'This action is final and permanent. Are you absolutely certain you want to proceed?',
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFBA1A1A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Yes, Delete Permanently'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm2 != true) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final postId = widget.postData['id'];
+      final response = await ApiService.delete('/api/posts/$postId');
+      if (response.statusCode == 200) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Post deleted successfully!'),
+            backgroundColor: Color(0xFFBA1A1A),
+          ),
+        );
+        if (widget.onDelete != null) {
+          widget.onDelete!();
+        }
+      } else {
+        final err = jsonDecode(response.body);
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(err['error'] ?? 'Failed to delete post'),
+            backgroundColor: const Color(0xFFBA1A1A),
+          ),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: const Color(0xFFBA1A1A),
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -1178,10 +1366,12 @@ class _PostCardState extends State<PostCard> {
                 behavior: HitTestBehavior.opaque,
                 child: Row(
                   children: [
-                    const CircleAvatar(
-                      backgroundColor: Color(0xFFECEFEA),
+                    CircleAvatar(
+                      backgroundColor: const Color(0xFFECEFEA),
                       radius: 20,
-                      backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+                      backgroundImage: NetworkImage(
+                        widget.postData['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Column(
@@ -1220,12 +1410,20 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.flag_outlined, color: Color(0xFFBA1A1A), size: 20),
-                    onPressed: _reportPost,
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
-                  ),
+                  if (widget.currentUserUid != null && widget.postData['author_uid'] == widget.currentUserUid)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A), size: 20),
+                      onPressed: _deletePost,
+                      constraints: const BoxConstraints(),
+                      padding: EdgeInsets.zero,
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.flag_outlined, color: Color(0xFFBA1A1A), size: 20),
+                      onPressed: _reportPost,
+                      constraints: const BoxConstraints(),
+                      padding: EdgeInsets.zero,
+                    ),
                 ],
               ),
             ],
@@ -1434,8 +1632,72 @@ class _CommentSheetState extends State<CommentSheet> {
   }
 
   Future<void> _deleteComment(int commentId) async {
+    final bool? confirm1 = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Delete Comment?',
+          style: TextStyle(color: Color(0xFFBA1A1A), fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this comment? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFBA1A1A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Delete'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm1 != true) return;
+
+    if (!mounted) return;
+
+    final bool? confirm2 = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Confirm Deletion (Step 2 of 2)',
+          style: TextStyle(color: Color(0xFFBA1A1A), fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'This action is final and permanent. Are you absolutely certain you want to proceed?',
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(dialogContext, false),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFBA1A1A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text('Yes, Delete Permanently'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm2 != true) return;
+
     try {
-      final response = await ApiService.delete('/api/posts/${widget.postId}/comment/$commentId');
+      final response = await ApiService.delete('/api/comments/$commentId');
       if (response.statusCode == 200) {
         await _fetchComments();
       }
@@ -1494,10 +1756,12 @@ class _CommentSheetState extends State<CommentSheet> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const CircleAvatar(
+                          CircleAvatar(
                             radius: 16,
-                            backgroundColor: Color(0xFFECEFEA),
-                            backgroundImage: NetworkImage('https://via.placeholder.com/150'),
+                            backgroundColor: const Color(0xFFECEFEA),
+                            backgroundImage: NetworkImage(
+                              comment['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(

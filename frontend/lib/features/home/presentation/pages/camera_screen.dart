@@ -4,8 +4,17 @@ import 'preview_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
+  final int? missionId;
+  final int? categoryId;
+  final bool isProfilePicMode;
 
-  const CameraScreen({Key? key, required this.cameras}) : super(key: key);
+  const CameraScreen({
+    Key? key,
+    required this.cameras,
+    this.missionId,
+    this.categoryId,
+    this.isProfilePicMode = false,
+  }) : super(key: key);
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -133,12 +142,20 @@ class _CameraScreenState extends State<CameraScreen> {
 
                             if (!mounted) return;
 
-                            Navigator.push(
+                            final uploadSuccess = await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => PreviewScreen(imagePath: image.path),
+                                builder: (context) => PreviewScreen(
+                                  imagePath: image.path,
+                                  missionId: widget.missionId,
+                                  categoryId: widget.categoryId,
+                                  isProfilePicMode: widget.isProfilePicMode,
+                                ),
                               ),
                             );
+                            if (uploadSuccess == true && mounted) {
+                              Navigator.pop(context, true);
+                            }
 
                           } catch (e) {
                             debugPrint('Error taking picture: $e');

@@ -75,7 +75,7 @@ EcoEcho/
     │   ├── features/       # Core app modules (Feed, Missions, Profile, Auth)
     │   └── main.dart       # App entry point
     └── pubspec.yaml        # Flutter dependencies
-
+```
 ## Getting Started
 
 ### Prerequisites

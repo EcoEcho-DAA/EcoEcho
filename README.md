@@ -86,24 +86,25 @@ EcoEcho/
 
 ### Local Setup Instructions
 
-1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/EcoEcho-DAA/EcoEcho.git](https://github.com/EcoEcho-DAA/EcoEcho.git)
-   cd EcoEcho
-  ```
-2. Start PostgreSQL and Redis (Docker):
-  ``bash
+**1. Clone the repository:**
+```bash
+git clone [https://github.com/EcoEcho-DAA/EcoEcho.git](https://github.com/EcoEcho-DAA/EcoEcho.git)
+cd EcoEcho
+```
+**2. Start PostgreSQL and Redis (Docker):**
+  ```bash
   docker-compose up -d
   ```
-3. Initialize the Database Schema:
-  Windows (PowerShell):
+**3. Initialize the Database Schema:**
+  - Windows (PowerShell):
   ```PowerShell
   Get-Content backend\database\init.sql -Raw | docker exec -i ecoecho-postgres psql -U eco_admin -d ecoecho_db
   ```
-  Mac / Linux (Bash):
+ - Mac / Linux (Bash):
   ```bash
   docker exec -i ecoecho-postgres psql -U eco_admin -d ecoecho_db < backend/database/init.sql
-4. Initialize Backend Environment and Seed:
+```
+**4. Initialize Backend Environment and Seed:**
   - Create a .env file inside backend/ mirroring your environment settings. Then run:
 ```bash
 cd backend
@@ -113,7 +114,7 @@ npm start
 ```
 Verify the server is running on http://localhost:3000.
 
-5. Launch Flutter Frontend:
+**5. Launch Flutter Frontend:**
 ```bash
 cd ../frontend
 flutter pub get
@@ -127,4 +128,4 @@ To ensure a clean history and quality validation:
 - **Commits:** Write clear semantic messages (e.g., `feat(backend): implement counting sort algorithm`).
 - **Pull Requests:** Open a PR targeting `main`. Describe algorithm changes, including time/space complexities, and secure at least 1 team peer review approval.
 
-For issues, support, or questions, contact roxanek.esquejo@gmail.com or contactjkeaviles@gmail.com.
+For issues, support, or questions, contact contactjkeaviles@gmail.com or roxanek.esquejo@gmail.com.

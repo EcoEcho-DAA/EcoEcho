@@ -48,4 +48,31 @@ function countingSort(logs) {
   return sortedByFrequency;
 }
 
-module.exports = { countingSort };
+// Generic counting sort for numeric keys – used for popularity sorting of feeds
+function countingSortByKey(arr, keyFn) {
+  if (!Array.isArray(arr) || arr.length === 0) return [];
+  // Determine min and max key values
+  let min = Infinity, max = -Infinity;
+  for (const item of arr) {
+    const k = keyFn(item);
+    if (typeof k !== 'number' || isNaN(k)) continue;
+    if (k < min) min = k;
+    if (k > max) max = k;
+  }
+  if (min === Infinity) return [];
+  const range = max - min + 1;
+  const buckets = Array.from({ length: range }, () => []);
+  for (const item of arr) {
+    const k = keyFn(item);
+    if (typeof k !== 'number' || isNaN(k)) continue;
+    buckets[k - min].push(item);
+  }
+  // Concatenate buckets in descending order (most popular first)
+  const sorted = [];
+  for (let i = range - 1; i >= 0; i--) {
+    if (buckets[i].length) sorted.push(...buckets[i]);
+  }
+  return sorted;
+}
+
+module.exports = { countingSort, countingSortByKey };

@@ -10,6 +10,7 @@ const redisClient = require('./src/config/redisClient');
 const { getWrappedDataForUser } = require('./src/controllers/wrappedQueriesController');
 const { kmpContains } = require('./src/algorithms/stringMatch');
 const { runLeaderboardHeapSort } = require('./src/algorithms/heapSort');
+const { countingSortByKey } = require('./src/algorithms/countingSort');
 const { verifyMissionPrerequisites, hasProgressionPath } = require('./src/algorithms/dfs');
 const supabase = require('./src/config/supabaseClient');
 
@@ -818,7 +819,17 @@ app.get('/api/feed/friends', protect, async (req, res) => {
        ORDER BY p.created_at DESC`,
       [req.userId]
     );
-    return res.status(200).json(rows);
+        // Optional sorting based on query param
+        let resultRows = rows;
+        if (req.query.sort === 'popular') {
+          resultRows = countingSortByKey(rows, r => {
+            const likes = Number(r.likes_count) || 0;
+            const comments = Number(r.comments_count) || 0;
+            const downvotes = Number(r.downvotes_count) || 0;
+            return likes + comments - downvotes;
+          });
+        }
+        return res.status(200).json(resultRows);
   } catch (err) {
     console.error('Get friends feed error:', err);
     return res.status(500).json({ error: err.message });
@@ -946,7 +957,17 @@ app.get('/api/feed/trending', optionalProtect, async (req, res) => {
        ORDER BY p.created_at DESC`,
       [userId]
     );
-    return res.status(200).json(rows);
+    // Apply optional sorting
+    let resultRows = rows;
+    if (req.query.sort === 'popular') {
+      resultRows = countingSortByKey(rows, r => {
+        const likes = Number(r.likes_count) || 0;
+        const comments = Number(r.comments_count) || 0;
+        const downvotes = Number(r.downvotes_count) || 0;
+        return likes + comments - downvotes;
+      });
+    }
+    return res.status(200).json(resultRows);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

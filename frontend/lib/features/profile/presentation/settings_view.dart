@@ -146,7 +146,7 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Have a question or run into issues? Email our support team directly at contactjkeaviles@gmail.com.',
+              'Have a question or run into issues? Email our support team directly at contactjkeaviles@gmail.com or roxanek.esquejo@gmail.com.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontSize: 14),
             ),
@@ -171,7 +171,7 @@ class _SettingsViewState extends State<SettingsView> {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(this.context).showSnackBar(
                         SnackBar(
-                          content: const Text('Send email to contactjkeaviles@gmail.com and we\'ll get back to you.'),
+                          content: const Text('Send email to contactjkeaviles@gmail.com or roxanek.esquejo@gmail.com and we\'ll get back to you.'),
                           backgroundColor: Color(0xFF154212),
                           behavior: SnackBarBehavior.floating,
                         ),

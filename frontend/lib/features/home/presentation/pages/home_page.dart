@@ -29,6 +29,7 @@ class _HomePageState extends State<HomePage> {
   int _notificationCount = 0;
   List<dynamic> _pendingRequests = [];
   List<dynamic> _appNotifications = [];
+  String _sortOption = 'latest';
 
   @override
   void initState() {
@@ -363,7 +364,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<List<dynamic>> _fetchFriendsFeed() async {
-    final response = await ApiService.get('/api/feed/friends');
+    final response = await ApiService.get('/api/feed/friends?sort=$_sortOption');
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as List<dynamic>;
     } else {
@@ -694,7 +695,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<List<dynamic>> _fetchFeed() async {
-    final response = await ApiService.get('/api/feed/trending');
+    final response = await ApiService.get('/api/feed/trending?sort=$_sortOption');
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as List<dynamic>;
     } else {
@@ -831,7 +832,31 @@ class _HomePageState extends State<HomePage> {
           _buildLogActivitySection(),
           const SizedBox(height: 24),
           _buildFeedToggle(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          // Sort dropdown
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Text('Sort: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                DropdownButton<String>(
+                  value: _sortOption,
+                  items: const [
+                    DropdownMenuItem(value: 'latest', child: Text('Latest')),
+                    DropdownMenuItem(value: 'popular', child: Text('Popular')),
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _sortOption = val!;
+                    });
+                    _refreshFeed();
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           if (_isCommunityFeed) ...[
             FutureBuilder<List<dynamic>>(
               future: _feedFuture,

@@ -66,29 +66,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    if (username.isNotEmpty && email.isNotEmpty && password.isNotEmpty) {
-      final accepted = await _showTermsAndConditions();
-      if (!accepted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('You must accept the terms and conditions to create an account.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-        return;
-      }
-      context.read<AuthBloc>().add(
-        SignupRequested(
-          username: username,
-          email: email,
-          password: password,
-          ecoScore: 0.0,
-          region: _selectedRegion?['regDesc'],
-          province: _selectedProvince?['provDesc'],
-          city: _selectedCity?['citymunDesc'],
-        ),
-      );
-    } else {
+    if (username.isEmpty || email.isEmpty || password.isEmpty) {
       final theme = Theme.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -96,7 +74,53 @@ class _SignupScreenState extends State<SignupScreen> {
           backgroundColor: theme.colorScheme.error,
         ),
       );
+      return;
     }
+
+    if (!email.contains('@')) {
+      final theme = Theme.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter a valid email address containing "@".'),
+          backgroundColor: theme.colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    if (password.length <= 8 || !password.contains(RegExp(r'[a-zA-Z]')) || !password.contains(RegExp(r'[0-9]'))) {
+      final theme = Theme.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Password must be longer than 8 characters and contain both numbers and letters.'),
+          backgroundColor: theme.colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    final accepted = await _showTermsAndConditions();
+    if (!accepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('You must accept the terms and conditions to create an account.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+    
+    context.read<AuthBloc>().add(
+      SignupRequested(
+        username: username,
+        email: email,
+        password: password,
+        ecoScore: 0.0,
+        region: _selectedRegion?['regDesc'],
+        province: _selectedProvince?['provDesc'],
+        city: _selectedCity?['citymunDesc'],
+      ),
+    );
   }
 
   Future<bool> _showTermsAndConditions() async {

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:ui';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -19,6 +21,37 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+
+  // Location data
+  List<dynamic> _allRegions = [];
+  List<dynamic> _allProvinces = [];
+  List<dynamic> _allCities = [];
+
+  List<dynamic> _filteredProvinces = [];
+  List<dynamic> _filteredCities = [];
+
+  Map<String, dynamic>? _selectedRegion;
+  Map<String, dynamic>? _selectedProvince;
+  Map<String, dynamic>? _selectedCity;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocationData();
+  }
+
+  Future<void> _loadLocationData() async {
+    final regionStr = await rootBundle.loadString('assets/json/region.json');
+    final provinceStr = await rootBundle.loadString('assets/json/province.json');
+    final cityStr = await rootBundle.loadString('assets/json/city-municipality.json');
+    setState(() {
+      _allRegions = json.decode(regionStr)['RECORDS'];
+      _allProvinces = json.decode(provinceStr)['RECORDS'];
+      _allCities = json.decode(cityStr)['RECORDS'];
+      _filteredProvinces = [];
+      _filteredCities = [];
+    });
+  }
 
   @override
   void dispose() {
@@ -50,6 +83,9 @@ class _SignupScreenState extends State<SignupScreen> {
           email: email,
           password: password,
           ecoScore: 0.0,
+          region: _selectedRegion?['regDesc'],
+          province: _selectedProvince?['provDesc'],
+          city: _selectedCity?['citymunDesc'],
         ),
       );
     } else {
@@ -294,6 +330,103 @@ class _SignupScreenState extends State<SignupScreen> {
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 12),
+                            // Region Dropdown
+                            DropdownButtonHideUnderline(
+                                child: DropdownButtonFormField<Map<String, dynamic>>(
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    prefixIcon: Icon(Icons.map, color: colorScheme.onSurfaceVariant),
+                                    hintText: 'Select Region',
+                                    filled: true,
+                                    fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                      borderSide: BorderSide(color: colorScheme.outline),
+                                    ),
+                                  ),
+                                  items: _allRegions.map((region) {
+                                    return DropdownMenuItem<Map<String, dynamic>>(
+                                      value: region,
+                                      child: Text(region['regDesc'] ?? ''),
+                                    );
+                                  }).toList(),
+                                  value: _selectedRegion,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedRegion = value;
+                                      _selectedProvince = null;
+                                      _selectedCity = null;
+                                      // Filter provinces for selected region
+                                      _filteredProvinces = _allProvinces.where((p) => p['regCode'] == value?['regCode']).toList();
+                                      _filteredCities = [];
+                                    });
+                                  },
+                                ),
+                            ),
+                            const SizedBox(height: 12),
+                            // Province Dropdown
+                            DropdownButtonHideUnderline(
+                                child: DropdownButtonFormField<Map<String, dynamic>>(
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    prefixIcon: Icon(Icons.location_city, color: colorScheme.onSurfaceVariant),
+                                    hintText: 'Select Province',
+                                    filled: true,
+                                    fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                      borderSide: BorderSide(color: colorScheme.outline),
+                                    ),
+                                  ),
+                                  items: _filteredProvinces.map((prov) {
+                                    return DropdownMenuItem<Map<String, dynamic>>(
+                                      value: prov,
+                                      child: Text(prov['provDesc'] ?? ''),
+                                    );
+                                  }).toList(),
+                                  value: _selectedProvince,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedProvince = value;
+                                      _selectedCity = null;
+                                      // Filter cities for selected province
+                                      _filteredCities = _allCities.where((c) => c['provCode'] == value?['provCode']).toList();
+                                    });
+                                  },
+                                ),
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonHideUnderline(
+          child: DropdownButtonFormField<Map<String, dynamic>>(
+            isExpanded: true,
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.location_city, color: colorScheme.onSurfaceVariant),
+              hintText: 'Select City/Municipality',
+              filled: true,
+              fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.0),
+                borderSide: BorderSide(color: colorScheme.outline),
+              ),
+            ),
+            items: _filteredCities.map((city) {
+              return DropdownMenuItem<Map<String, dynamic>>(
+                value: city,
+                child: Text(city['citymunDesc'] ?? ''),
+              );
+            }).toList(),
+            value: _selectedCity,
+            onChanged: (value) {
+              setState(() {
+                _selectedCity = value;
+              });
+            },
+          ),
+        ),
                             const SizedBox(height: 20),
 
                             

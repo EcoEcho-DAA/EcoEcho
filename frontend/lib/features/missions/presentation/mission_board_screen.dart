@@ -62,18 +62,18 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
   }
 
   String _getMissionIcon(int missionId, {int? categoryId}) {
-    if (missionId == 101) return 'assets/icons/mission_tree.png';
-    if (missionId == 102) return 'assets/icons/mission_recycling.png';
-    if (missionId == 103) return 'assets/icons/mission_community.png';
-    if (missionId == 104) return 'assets/icons/mission_plastic.png';
-    if (missionId == 105) return 'assets/icons/mission_water.png';
+    if (missionId == 101) return 'icons/mission_tree.png';
+    if (missionId == 102) return 'icons/mission_recycling.png';
+    if (missionId == 103) return 'icons/mission_community.png';
+    if (missionId == 104) return 'icons/mission_plastic.png';
+    if (missionId == 105) return 'icons/mission_water.png';
     
-    if (categoryId == 1) return 'assets/icons/mission_tree.png'; 
-    if (categoryId == 2) return 'assets/icons/mission_community.png';
-    if (categoryId == 3) return 'assets/icons/mission_recycling.png';
-    if (categoryId == 4) return 'assets/icons/mission_water.png';
-    if (categoryId == 5) return 'assets/icons/mission_plastic.png';
-    return 'assets/icons/mission_tree.png';
+    if (categoryId == 1) return 'icons/mission_tree.png'; 
+    if (categoryId == 2) return 'icons/mission_community.png';
+    if (categoryId == 3) return 'icons/mission_recycling.png';
+    if (categoryId == 4) return 'icons/mission_water.png';
+    if (categoryId == 5) return 'icons/mission_plastic.png';
+    return 'icons/mission_tree.png';
   }
 
   void _selectImageSource(BuildContext context, {int? missionId, int? categoryId, bool isProfilePicMode = false, VoidCallback? onSuccess}) {

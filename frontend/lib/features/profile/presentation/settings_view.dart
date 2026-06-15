@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/network/api_service.dart';
+import 'package:frontend/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/theme_cubit.dart';
 
@@ -344,6 +345,13 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   @override
+  void _logout() async {
+    // Clear stored token
+    ApiService.userToken = null;
+    // Optionally navigate to login screen
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+  }
+
   Widget build(BuildContext context) {
     final email = widget.userProfile['email'] ?? 'Not set';
     final uid = widget.userProfile['uid'] ?? 'Not set';
@@ -583,6 +591,13 @@ class _SettingsViewState extends State<SettingsView> {
                     title: const Text('Terms and Conditions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     trailing: Icon(Icons.chevron_right, color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E)),
                     onTap: _showTermsModal,
+                  ),
+                  Divider(height: 1, thickness: 1, color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFECEFEA)),
+                  ListTile(
+                    leading: Icon(Icons.logout, color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)),
+                    title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    trailing: Icon(Icons.chevron_right, color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E)),
+                    onTap: _logout,
                   ),
                 ],
               ),

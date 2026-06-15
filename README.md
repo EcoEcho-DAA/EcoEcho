@@ -92,7 +92,7 @@ EcoEcho/
    cd EcoEcho
   ```
 2. Start PostgreSQL and Redis (Docker):
-  ``Bash
+  ``bash
   docker-compose up -d
   ```
 3. Initialize the Database Schema:
@@ -101,11 +101,11 @@ EcoEcho/
   Get-Content backend\database\init.sql -Raw | docker exec -i ecoecho-postgres psql -U eco_admin -d ecoecho_db
   ```
   Mac / Linux (Bash):
-  ```Bash
+  ```bash
   docker exec -i ecoecho-postgres psql -U eco_admin -d ecoecho_db < backend/database/init.sql
 4. Initialize Backend Environment and Seed:
   - Create a .env file inside backend/ mirroring your environment settings. Then run:
-```Bash
+```bash
 cd backend
 npm install
 node run_seed.js
@@ -114,7 +114,7 @@ npm start
 Verify the server is running on http://localhost:3000.
 
 5. Launch Flutter Frontend:
-```Bash
+```bash
 cd ../frontend
 flutter pub get
 flutter run

@@ -15,14 +15,21 @@ class MissionBoardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => MissionsBloc()..add(FetchDailyMissions()),
+      create: (context) => MissionsBloc()..add(FetchAllMissions()),
       child: const MissionBoardView(),
     );
   }
 }
 
-class MissionBoardView extends StatelessWidget {
+class MissionBoardView extends StatefulWidget {
   const MissionBoardView({super.key});
+
+  @override
+  State<MissionBoardView> createState() => _MissionBoardViewState();
+}
+
+class _MissionBoardViewState extends State<MissionBoardView> {
+  bool _showCompletedDailyMissions = false;
 
   String _formatHumanDate(String? dateStr) {
     if (dateStr == null) return '';
@@ -36,6 +43,21 @@ class MissionBoardView extends StatelessWidget {
     } catch (_) {
       return '';
     }
+  }
+
+  String _getMissionIcon(int missionId, {int? categoryId}) {
+    if (missionId == 101) return 'assets/icons/mission_tree.png';
+    if (missionId == 102) return 'assets/icons/mission_recycling.png';
+    if (missionId == 103) return 'assets/icons/mission_community.png';
+    if (missionId == 104) return 'assets/icons/mission_plastic.png';
+    if (missionId == 105) return 'assets/icons/mission_water.png';
+    
+    if (categoryId == 1) return 'assets/icons/mission_tree.png'; 
+    if (categoryId == 2) return 'assets/icons/mission_community.png';
+    if (categoryId == 3) return 'assets/icons/mission_recycling.png';
+    if (categoryId == 4) return 'assets/icons/mission_water.png';
+    if (categoryId == 5) return 'assets/icons/mission_plastic.png';
+    return 'assets/icons/mission_tree.png';
   }
 
   void _selectImageSource(BuildContext context, {int? missionId, int? categoryId, bool isProfilePicMode = false, VoidCallback? onSuccess}) {
@@ -337,65 +359,68 @@ class MissionBoardView extends StatelessWidget {
                   ],
                 ),
               ),
-              
-              const SizedBox(height: 12),
+            ),
+            
+            const SizedBox(height: 12),
 
-              // Missions list content
-              Expanded(
-                child: BlocBuilder<MissionsBloc, MissionsState>(
-                  builder: (context, state) {
-                    if (state is MissionsLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF154212),
-                        ),
-                      );
-                    }
+            // Missions list content
+            Expanded(
+              child: BlocBuilder<MissionsBloc, MissionsState>(
+                builder: (context, state) {
+                  if (state is MissionsLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF154212),
+                      ),
+                    );
+                  }
 
-                    if (state is MissionsError) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline, size: 48, color: Color(0xFFBA1A1A)),
-                              const SizedBox(height: 12),
-                              Text(
-                                state.errorMessage,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Color(0xFFBA1A1A),
-                                  fontFamily: 'Inter',
+                  if (state is MissionsError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Color(0xFFBA1A1A)),
+                            const SizedBox(height: 12),
+                            Text(
+                              state.errorMessage,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFFBA1A1A),
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                context.read<MissionsBloc>().add(FetchAllMissions());
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF154212),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () {
-                                  context.read<MissionsBloc>().add(FetchDailyMissions());
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF154212),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text('Try Again'),
-                              ),
-                            ],
-                          ),
+                              child: const Text('Try Again'),
+                            ),
+                          ],
                         ),
-                      );
-                    }
+                      ),
+                    );
+                  }
 
-                    if (state is MissionsLoaded) {
-                      final missions = state.missions;
-                      final analytics = state.analytics;
+                  if (state is MissionsLoaded) {
+                    final dailyMissions = state.dailyMissions;
+                    final analytics = state.analytics;
+                    final fixedMissions = state.fixedMissions;
+                    final prerequisites = state.prerequisites;
 
-                      final ongoingMissions = missions.where((m) => m['completed_at'] == null).toList();
-                      final completedMissions = missions.where((m) => m['completed_at'] != null).toList();
+                    final ongoingMissions = dailyMissions.where((m) => m['completed_at'] == null).toList();
+                    final completedMissions = dailyMissions.where((m) => m['completed_at'] != null).toList();
 
                       return Column(
                         children: [
@@ -408,22 +433,60 @@ class MissionBoardView extends StatelessWidget {
                                 _buildMissionsTabList(context, completedMissions, true),
                               ],
                             ),
-                          ),
-                        ],
-                      );
-                    }
+                            
+                            if (ongoingMissions.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                child: Text('No ongoing daily missions left!', style: TextStyle(color: Color(0xFF72796E))),
+                              )
+                            else
+                              ...ongoingMissions.map((m) => Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: _buildMissionCard(context, m),
+                              )),
+                              
+                            if (_showCompletedDailyMissions && completedMissions.isNotEmpty) ...[
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(20, 12, 20, 12),
+                                child: Text('Completed Daily Missions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF72796E), fontFamily: 'Be Vietnam Pro')),
+                              ),
+                              ...completedMissions.map((m) => Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: _buildMissionCard(context, m),
+                              )),
+                            ],
 
-                    return const SizedBox.shrink();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+                            const SizedBox(height: 16),
+                            const Divider(color: Color(0xFFE2E9DB), thickness: 8),
+                            const SizedBox(height: 16),
 
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                              child: Text(
+                                'User Missions', 
+                                style: TextStyle(
+                                  fontSize: 20, 
+                                  fontWeight: FontWeight.bold, 
+                                  // Fixes light-mode hardcoded color to support global dark mode theme
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? Colors.white 
+                                      : const Color(0xFF154212), 
+                                  fontFamily: 'Be Vietnam Pro',
+                                ),
+                              ),
+                            ),
+
+                            _buildFixedMissionsBoard(fixedMissions, prerequisites),
+                            
+                            const SizedBox(height: 40),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return const SizedBox.shrink();
+                },
   Widget _buildMissionsTabList(BuildContext context, List<dynamic> list, bool isCompleted) {
     if (list.isEmpty) {
       return Center(
@@ -453,18 +516,12 @@ class MissionBoardView extends StatelessWidget {
         ),
       );
     }
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        context.read<MissionsBloc>().add(FetchDailyMissions());
-      },
-      color: const Color(0xFF154212),
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-        itemCount: list.length,
-        itemBuilder: (context, index) {
-          return _buildMissionCard(context, list[index]);
-        },
+    return const SizedBox.shrink();
+  }
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -495,7 +552,7 @@ class MissionBoardView extends StatelessWidget {
         missionId: missionId,
         categoryId: categoryId,
         onSuccess: () {
-          context.read<MissionsBloc>().add(FetchDailyMissions());
+          context.read<MissionsBloc>().add(FetchAllMissions());
         },
       );
     };
@@ -528,10 +585,14 @@ class MissionBoardView extends StatelessWidget {
                 color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFF2F4EF),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                Icons.energy_savings_leaf,
-                color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
-                size: 24,
+              child: Image.asset(
+                _getMissionIcon(missionId, categoryId: categoryId),
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.green 
+                    : const Color(0xFF154212),
+                width: 24,
+                height: 24,
+              ),
               ),
             ),
             const SizedBox(width: 16),
@@ -629,4 +690,354 @@ class MissionBoardView extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildFixedMissionsBoard(List<dynamic> missions, List<dynamic> prerequisites) {
+    Map<int, dynamic> missionMap = {};
+    for(var m in missions) {
+      missionMap[m['id']] = m;
+    }
+    
+    bool isCompleted(int id) => missionMap[id]?['completed_at'] != null;
+    
+    bool isUnlocked(int id) {
+       if (id == 101) return true;
+       if (id == 102 || id == 103) return isCompleted(101);
+       if (id == 104) return isCompleted(102);
+       if (id == 105) return isCompleted(103);
+       return false;
+    }
+
+    Widget buildNode(int id, Color activeColor) {
+      final m = missionMap[id];
+      if (m == null) return const SizedBox(width: 120, height: 120);
+      
+      final bool completed = isCompleted(id);
+      final bool unlocked = isUnlocked(id);
+      final String title = m['title'] ?? '';
+      
+      IconData _getFixedMissionOriginalIcon(int id) {
+        switch (id) {
+          case 101: return Icons.eco;
+          case 102: return Icons.water_drop;
+          case 103: return Icons.park;
+          case 104: return Icons.recycling;
+          case 105: return Icons.groups;
+          default: return Icons.star;
+        }
+      }
+      final IconData originalIcon = _getFixedMissionOriginalIcon(id);
+
+      return GestureDetector(
+        onTap: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.white,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            builder: (sheetContext) => Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: activeColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(originalIcon, color: activeColor, size: 32),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF154212),
+                                fontFamily: 'Be Vietnam Pro',
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Reward: ${m['xp_reward'] ?? 0} XP',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2E6F27),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    m['description'] ?? 'Take action to save the planet.',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF42493E),
+                      fontFamily: 'Inter',
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  if (completed)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF154212).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.check_circle, color: Color(0xFF154212)),
+                          SizedBox(width: 8),
+                          Text('Mission Completed!', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF154212))),
+                        ],
+                      ),
+                    )
+                  else if (!unlocked)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFBA1A1A).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.lock, color: Color(0xFFBA1A1A)),
+                          SizedBox(width: 8),
+                          Text('Complete previous missions to unlock', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFBA1A1A))),
+                        ],
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          int catId = 1;
+                          if (id == 102 || id == 104) catId = 3; 
+                          else if (id == 103) catId = 2;
+                          else if (id == 101) catId = 5;
+                          
+                          _selectImageSource(
+                            context,
+                            missionId: id,
+                            categoryId: catId, 
+                            onSuccess: () {
+                              context.read<MissionsBloc>().add(FetchAllMissions());
+                            },
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF154212),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Text('Upload Photo Proof', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          );
+        },
+        child: Container(
+           width: 120,
+           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+           decoration: BoxDecoration(
+             color: unlocked ? (completed ? Colors.white : const Color(0xFFF4F6F0)) : Colors.transparent,
+             border: Border.all(
+               color: completed ? const Color(0xFF154212) : 
+                      (unlocked ? const Color(0xFFD3D8CE) : Colors.transparent),
+               width: completed ? 2.0 : 1.0,
+             ),
+             borderRadius: BorderRadius.circular(16),
+           ),
+           child: Column(
+             children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: completed ? const Color(0xFF154212) : 
+                           (unlocked ? activeColor : const Color(0xFFE7E9E4)),
+                  ),
+                  child: completed 
+                    ? const Icon(Icons.check, color: Colors.white, size: 28)
+                    : (unlocked 
+                        ? Icon(originalIcon, color: Colors.white, size: 28)
+                        : const Icon(Icons.lock_outline, color: Color(0xFFC2C9BB), size: 28)),
+                ),
+               const SizedBox(height: 12),
+               Text(
+                 title,
+                 textAlign: TextAlign.center,
+                 style: TextStyle(
+                   fontSize: 12,
+                   fontWeight: FontWeight.bold,
+                   fontFamily: 'Be Vietnam Pro',
+                   color: unlocked ? const Color(0xFF154212) : const Color(0xFFC2C9BB),
+                 ),
+               ),
+               if (unlocked && !completed) ...[
+                 const SizedBox(height: 8),
+                 Container(
+                   width: 80,
+                   height: 6,
+                   decoration: BoxDecoration(
+                     color: const Color(0xFFD3D8CE),
+                     borderRadius: BorderRadius.circular(3),
+                   ),
+                   child: Align(
+                     alignment: Alignment.centerLeft,
+                     child: Container(
+                       width: 40,
+                       height: 6,
+                       decoration: BoxDecoration(
+                         color: const Color(0xFF154212),
+                         borderRadius: BorderRadius.circular(3),
+                       ),
+                     ),
+                   ),
+                 ),
+               ],
+             ],
+           ),
+        ),
+      );
+    }
+
+    return Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+          child: Container(
+             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+             decoration: BoxDecoration(
+               color: Colors.white,
+               borderRadius: BorderRadius.circular(16),
+               boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x0A79564B),
+                    blurRadius: 16,
+                    offset: Offset(0, 4),
+                  ),
+               ],
+             ),
+             child: Column(
+               children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.account_tree_outlined, color: Color(0xFF154212)),
+                      SizedBox(width: 8),
+                      Text('Mission Board', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Be Vietnam Pro', color: Color(0xFF154212))),
+                    ],
+                  ),
+                  const SizedBox(height: 40),
+                  
+                  buildNode(101, const Color(0xFF154212)),
+                  
+                  CustomPaint(
+                    size: const Size(160, 40),
+                    painter: TreeLinePainter(),
+                  ),
+                  
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Column(
+                        children: [
+                          buildNode(102, const Color(0xFF72796E)),
+                          CustomPaint(
+                            size: const Size(2, 40),
+                            painter: VerticalLinePainter(),
+                          ),
+                          buildNode(104, const Color(0xFF72796E)),
+                        ],
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        children: [
+                          buildNode(103, const Color(0xFF2E6F27)),
+                          CustomPaint(
+                            size: const Size(2, 40),
+                            painter: VerticalLinePainter(),
+                          ),
+                          buildNode(105, const Color(0xFF72796E)),
+                        ],
+                      ),
+                    ],
+                  ),
+               ],
+             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class TreeLinePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF154212)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    path.moveTo(size.width / 2, 0);
+    path.lineTo(size.width / 2, size.height / 2);
+    path.moveTo(0, size.height / 2);
+    path.lineTo(size.width, size.height / 2);
+    path.moveTo(0, size.height / 2);
+    path.lineTo(0, size.height);
+    path.moveTo(size.width, size.height / 2);
+    path.lineTo(size.width, size.height);
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class VerticalLinePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFC2C9BB)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+      
+    double startY = 0;
+    while(startY < size.height) {
+      canvas.drawLine(Offset(size.width / 2, startY), Offset(size.width / 2, startY + 4), paint);
+      startY += 8;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

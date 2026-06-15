@@ -751,13 +751,27 @@ class _HomePageState extends State<HomePage> {
                   _searchBuddy(val.trim());
                 },
               )
-            : Image.asset(
-                'assets/images/eelogo.png',
-                height: 28,
-                errorBuilder: (context, error, stackTrace) => const Text(
-                  'EcoEcho',
-                  style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold),
-                ),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/images/logo.png',
+                    height: 28,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.eco,
+                      color: Color(0xFF154212),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'EcoEcho',
+                    style: TextStyle(
+                      color: Color(0xFF154212),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                    ),
+                  ),
+                ],
               ),
         centerTitle: !_isSearching,
         actions: [
@@ -798,6 +812,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 8),
         ],
       ),
+
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
@@ -1406,6 +1421,7 @@ class _PostCardState extends State<PostCard> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
                 onTap: () {
@@ -1441,45 +1457,53 @@ class _PostCardState extends State<PostCard> {
                           _formatRelativeTime(widget.postData['created_at']),
                           style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontSize: 12),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFF15411F),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.stars, color: Colors.white, size: 14),
+                        const Icon(Icons.stars, color: Colors.white, size: 12),
                         const SizedBox(width: 4),
                         const Text(
                           '+50 XP',
-                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (widget.currentUserUid != null && widget.postData['author_uid'] == widget.currentUserUid)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A), size: 20),
-                      onPressed: _deletePost,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                    )
-                  else
-                    IconButton(
-                      icon: const Icon(Icons.flag_outlined, color: Color(0xFFBA1A1A), size: 20),
-                      onPressed: _reportPost,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
+                  if (widget.postData['mission_id'] != null) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.assignment_turned_in, color: Colors.orange, size: 12),
+                          SizedBox(width: 4),
+                          Text(
+                            'Mission',
+                            style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
                 ],
               ),
             ],
@@ -1539,6 +1563,7 @@ class _PostCardState extends State<PostCard> {
               ),
               child: Icon(Icons.image, size: 48, color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFFC2C9BB)),
             ),
+
           const SizedBox(height: 16),
           Divider(height: 1, color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.2)),
           const SizedBox(height: 12),
@@ -1601,6 +1626,21 @@ class _PostCardState extends State<PostCard> {
                   ],
                 ),
               ),
+              const Spacer(),
+              if (widget.currentUserUid != null && widget.postData['author_uid'] == widget.currentUserUid)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A), size: 20),
+                  onPressed: _deletePost,
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.flag_outlined, color: Color(0xFFBA1A1A), size: 20),
+                  onPressed: _reportPost,
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                ),
             ],
           ),
         ],
@@ -1815,9 +1855,9 @@ class _CommentSheetState extends State<CommentSheet> {
                           CircleAvatar(
                             radius: 16,
                             backgroundColor: const Color(0xFFECEFEA),
-                            backgroundImage: NetworkImage(
-                              comment['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                            ),
+                            backgroundImage: comment['profile_pic_url'] != null
+                              ? NetworkImage(comment['profile_pic_url'])
+                              : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -1830,7 +1870,6 @@ class _CommentSheetState extends State<CommentSheet> {
                                       comment['author_name'] ?? 'Unknown User',
                                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
                                     ),
-                                    const Spacer(),
                                     if (currentUserUid != null && comment['user_uid'] == currentUserUid)
                                       IconButton(
                                         icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),

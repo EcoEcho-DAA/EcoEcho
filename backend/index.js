@@ -294,7 +294,7 @@ app.get('/api/users/me', protect, async (req, res) => {
 app.get('/api/users/me/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -600,7 +600,7 @@ app.get('/api/users/:uid', protect, async (req, res) => {
 app.get('/api/users/:uid/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -801,7 +801,7 @@ app.post('/api/friends/decline', protect, async (req, res) => {
 app.get('/api/feed/friends', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -934,7 +934,7 @@ app.get('/api/feed/trending', optionalProtect, async (req, res) => {
   try {
     const userId = req.userId || null;
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -1160,7 +1160,7 @@ app.put('/api/users/profile-picture', protect, upload.single('image'), async (re
 app.get('/api/users/me/posts', protect, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text,
+      `SELECT p.id, u.uid AS author_uid, u.username AS author_name, u.profile_pic_url, p.caption, p.image_url, p.created_at, c.name as tag_text, p.mission_id,
         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM post_downvotes pd WHERE pd.post_id = p.id) as downvotes_count,
         (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) as comments_count,
@@ -1526,6 +1526,39 @@ app.get('/api/missions/daily', protect, async (req, res) => {
     });
   } catch (err) {
     console.error('GET /api/missions/daily error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9. GET /api/missions/fixed
+app.get('/api/missions/fixed', protect, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const missionsRes = await pool.query(
+      `SELECT 
+        m.id, 
+        m.title, 
+        m.description, 
+        m.xp_reward, 
+        um.completed_at
+      FROM missions m
+      LEFT JOIN user_missions um ON m.id = um.mission_id AND um.user_uid = $1
+      WHERE m.is_daily = false
+      ORDER BY m.id`,
+      [userId]
+    );
+
+    const prereqsRes = await pool.query(
+      `SELECT mission_id, prerequisite_mission_id FROM mission_prerequisites`
+    );
+
+    res.status(200).json({
+      missions: missionsRes.rows,
+      prerequisites: prereqsRes.rows
+    });
+  } catch (err) {
+    console.error('GET /api/missions/fixed error:', err);
     res.status(500).json({ error: err.message });
   }
 });

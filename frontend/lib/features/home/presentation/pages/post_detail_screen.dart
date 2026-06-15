@@ -236,9 +236,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         child: CircleAvatar(
                           backgroundColor: const Color(0xFFECEFEA),
                           radius: 24,
-                          backgroundImage: NetworkImage(
-                            _post['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
-                          ),
+                          backgroundImage: _post['profile_pic_url'] != null
+                            ? NetworkImage(_post['profile_pic_url'])
+                            : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                         ),
                       ),
                       const SizedBox(width: 12),

@@ -74,6 +74,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         title: const Text(
           'Leaderboard',
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.filter_list, color: Color(0xFF154212)),
+          onPressed: _showFilterSheet,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -386,18 +390,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                     radius: 18,
                                     backgroundColor: const Color(0xFFC2C9BB),
                                     backgroundImage: user['profile_pic_url'] != null
-                                        ? NetworkImage(user['profile_pic_url']!)
-                                        : null,
-                                    child: user['profile_pic_url'] == null
-                                        ? Text(
-                                            initial,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF154212),
-                                              fontSize: 14,
-                                            ),
-                                          )
-                                        : null,
+                                      ? NetworkImage(user['profile_pic_url'])
+                                      : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                                   ),
                                 ],
                               ),
@@ -491,19 +485,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 radius: avatarRadius,
                 backgroundColor: const Color(0xFFE1E3DE),
                 backgroundImage: user['profile_pic_url'] != null
-                    ? NetworkImage(user['profile_pic_url']!)
-                    : null,
-                child: user['profile_pic_url'] == null
-                    ? Text(
-                        initial,
-                        style: TextStyle(
-                          fontSize: avatarRadius * 0.8,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF154212),
-                          fontFamily: 'Be Vietnam Pro',
-                        ),
-                      )
-                    : null,
+                  ? NetworkImage(user['profile_pic_url'])
+                  : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
               ),
             ),
             const SizedBox(height: 10),
@@ -565,30 +548,181 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
   }
 
-  Widget _buildGeoChip(String label, String value) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isSelected = _selectedGeoFilter == value;
-    return ChoiceChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: isSelected 
-              ? (isDark ? Colors.black : Colors.white) 
-              : (isDark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E)),
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
+void _showFilterSheet() {
+    String tempTimeframe = _selectedTimeframe;
+    String tempGeoFilter = _selectedGeoFilter;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      selected: isSelected,
-      selectedColor: isDark ? Colors.white : const Color(0xFF154212),
-      backgroundColor: isDark ? const Color(0xFF1D221C) : const Color(0xFFECEFEA),
-      onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            _selectedGeoFilter = value;
-            _leaderboardFuture = _fetchLeaderboardData();
-          });
-        }
+      builder: (BuildContext sheetContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setSheetState) {
+            
+            Widget buildGeoChip(String label, String value) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              final isSelected = tempGeoFilter == value;
+              return ChoiceChip(
+                label: Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected 
+                        ? (isDark ? Colors.black : Colors.white) 
+                        : (isDark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E)),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                selected: isSelected,
+                selectedColor: isDark ? Colors.white : const Color(0xFF154212),
+                backgroundColor: isDark ? const Color(0xFF1D221C) : const Color(0xFFECEFEA),
+                onSelected: (selected) {
+                  if (selected) {
+                    setSheetState(() {
+                      tempGeoFilter = value;
+                    });
+                  }
+                },
+              );
+            }
+
+            Widget buildTimeframeButton(String label, String value) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              final isSelected = tempTimeframe == value;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    if (tempTimeframe != value) {
+                      setSheetState(() {
+                        tempTimeframe = value;
+                      });
+                    }
+                  },
+                  child: Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isSelected 
+                          ? (isDark ? Colors.white : const Color(0xFF154212)) 
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    alignment: Alignment.center,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: isSelected 
+                                ? (isDark ? Colors.black : Colors.white) 
+                                : (isDark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E)),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filters',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Timeframe',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      height: 44,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1D221C) : const Color(0xFFECEFEA),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Row(
+                        children: [
+                          buildTimeframeButton('Daily', 'daily'),
+                          buildTimeframeButton('Monthly', 'monthly'),
+                          buildTimeframeButton('Yearly', 'yearly'),
+                          buildTimeframeButton('All-Time', 'all-time'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Location',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8.0,
+                      runSpacing: 8.0,
+                      children: [
+                        buildGeoChip('All', 'all'),
+                        buildGeoChip('City (${_userCity ?? 'Local'})', 'city'),
+                        buildGeoChip('Province (${_userProvince ?? 'Local'})', 'province'),
+                        buildGeoChip('Region (${_userRegion ?? 'Local'})', 'region'),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          setState(() {
+                            _selectedTimeframe = tempTimeframe;
+                            _selectedGeoFilter = tempGeoFilter;
+                            _leaderboardFuture = _fetchLeaderboardData();
+                          });
+                        },
+                        child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
       },
     );
   }

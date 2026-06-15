@@ -6,24 +6,24 @@ import 'missions_state.dart';
 
 class MissionsBloc extends Bloc<MissionsEvent, MissionsState> {
   MissionsBloc() : super(MissionsInitial()) {
-    on<FetchDailyMissions>((event, emit) async {
+    on<FetchAllMissions>((event, emit) async {
       emit(MissionsLoading());
       try {
-        final response = await ApiService.get('/api/missions/daily');
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> data = jsonDecode(response.body);
-          final List<dynamic> missions = data['missions'] ?? [];
-          final Map<String, dynamic> analytics = data['analytics'] ?? {};
-          emit(MissionsLoaded(missions: missions, analytics: analytics));
+        final dailyRes = await ApiService.get('/api/missions/daily');
+        final fixedRes = await ApiService.get('/api/missions/fixed');
+
+        if (dailyRes.statusCode == 200 && fixedRes.statusCode == 200) {
+          final Map<String, dynamic> dailyData = jsonDecode(dailyRes.body);
+          final Map<String, dynamic> fixedData = jsonDecode(fixedRes.body);
+
+          emit(MissionsLoaded(
+            dailyMissions: dailyData['missions'] ?? [],
+            analytics: dailyData['analytics'] ?? {},
+            fixedMissions: fixedData['missions'] ?? [],
+            prerequisites: fixedData['prerequisites'] ?? [],
+          ));
         } else {
-          try {
-            final Map<String, dynamic> errorData = jsonDecode(response.body);
-            emit(MissionsError(
-              errorMessage: errorData['error'] ?? 'Failed to load missions.',
-            ));
-          } catch (_) {
-            emit(const MissionsError(errorMessage: 'Failed to load missions.'));
-          }
+          emit(const MissionsError(errorMessage: 'Failed to load missions.'));
         }
       } catch (e) {
         emit(MissionsError(errorMessage: 'Network error: ${e.toString()}'));

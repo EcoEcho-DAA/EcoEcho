@@ -195,18 +195,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  IconData _getTierIcon(String tierName) {
+  String _getTierImagePath(String tierName) {
     final name = tierName.toLowerCase();
     if (name.contains('seedling') || name == 'seed') {
-      return Icons.grass;
+      return 'assets/icons/tier_seed.png';
     } else if (name.contains('sprout')) {
-      return Icons.spa;
+      return 'assets/icons/tier_sprout.png';
     } else if (name.contains('sapling')) {
-      return Icons.nature;
+      return 'assets/icons/tier_sapling.png';
     } else if (name.contains('thriving tree') || name.contains('ancient')) {
-      return Icons.forest;
+      return 'assets/icons/tier_ancient.png';
     }
-    return Icons.eco;
+    return 'assets/icons/tier_seed.png';
   }
 
   @override
@@ -423,26 +423,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Stack(
                             children: [
                               CircleAvatar(
-                                radius: 50,
-                                backgroundColor: const Color(0xFFE1E3DE),
+                                radius: 46,
+                                backgroundColor: const Color(0xFFC2C9BB),
                                 backgroundImage: data['profile_pic_url'] != null
-                                    ? NetworkImage(data['profile_pic_url'])
-                                    : null,
-                                child: data['profile_pic_url'] == null
-                                    ? CircleAvatar(
-                                        radius: 46,
-                                        backgroundColor: const Color(0xFF154212),
-                                        child: Text(
-                                          initial,
-                                          style: const TextStyle(
-                                            fontSize: 40,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            fontFamily: 'Be Vietnam Pro',
-                                          ),
-                                        ),
-                                      )
-                                    : null,
+                                  ? NetworkImage(data['profile_pic_url'])
+                                  : const AssetImage('assets/images/avatar_placeholder.png') as ImageProvider,
                               ),
                               if (widget.userId == null)
                                 Positioned(
@@ -586,10 +571,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  _getTierIcon(tier),
-                                  color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF154212),
-                                  size: 18,
+                                 Image.asset(
+                                  _getTierImagePath(tier),
+                                  width: 24,
+                                  height: 24,
+                                  fit: BoxFit.contain,
+                                  // Optional: If you want the images to slightly pop or tint elegantly in dark mode
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? Colors.white.withOpacity(0.9) 
+                                      : null,
+                                  colorBlendMode: Theme.of(context).brightness == Brightness.dark 
+                                      ? BlendMode.modulate 
+                                      : BlendMode.srcIn,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
@@ -1138,7 +1131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Buddy request declined.'),
-            backgroundColor: Color(0xFFBA1A1A),
+            backgroundColor: const Color(0xFFBA1A1A),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1268,7 +1261,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             itemBuilder: (context, index) {
               final friend = _friendsList[index];
               final String name = friend['username'] ?? 'Eco Warrior';
-              final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'E';
               final String friendUid = friend['uid']?.toString() ?? '';
 
               return Padding(

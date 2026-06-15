@@ -109,9 +109,15 @@ class ApiService {
   }
 
   /// Uploads an image using raw bytes (useful on Web and to avoid temp files).
-  static Future<http.StreamedResponse> uploadImageBytes(String endpoint, Uint8List bytes, String filename, Map<String, String> fields) async {
+  static Future<http.StreamedResponse> uploadImageBytes(
+    String endpoint,
+    Uint8List bytes,
+    String filename,
+    Map<String, String> fields, {
+    String method = 'POST',
+  }) async {
     final url = Uri.parse('$baseUrl$endpoint');
-    final request = http.MultipartRequest('POST', url);
+    final request = http.MultipartRequest(method, url);
 
     if (userToken != null) {
       request.headers['Authorization'] = 'Bearer $userToken';

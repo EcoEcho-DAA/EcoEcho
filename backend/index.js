@@ -51,6 +51,77 @@ async function checkAndPromoteUserTier(userId) {
   return false;
 }
 
+/**
+ * Helper function to log user actions to activity_logs table.
+ */
+async function logUserActivity(userUid, actionDescription) {
+  try {
+    await pool.query(
+      `INSERT INTO activity_logs (user_uid, action_description) VALUES ($1, $2)`,
+      [userUid, actionDescription]
+    );
+  } catch (err) {
+    console.error('Error logging user activity:', err.message);
+  }
+}
+
+/**
+ * Helper function to dynamically calculate a user's daily streak from activity_logs.
+ */
+async function getUserDailyStreak(userId) {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD') as activity_date 
+       FROM activity_logs 
+       WHERE user_uid = $1 
+       ORDER BY activity_date DESC`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return 0;
+    }
+
+    const dates = result.rows.map(row => row.activity_date);
+
+    // Get today and yesterday in Asia/Manila timezone
+    const now = new Date();
+    const todayStr = now.toLocaleDateString('sv-SE', { timeZone: 'Asia/Manila' });
+
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toLocaleDateString('sv-SE', { timeZone: 'Asia/Manila' });
+
+    // If the latest activity is neither today nor yesterday, the streak is broken (0)
+    if (dates[0] !== todayStr && dates[0] !== yesterdayStr) {
+      return 0;
+    }
+
+    let streak = 1;
+    let currentDate = new Date(dates[0]);
+
+    for (let i = 1; i < dates.length; i++) {
+      const nextDate = new Date(dates[i]);
+      // Calculate difference in days
+      const diffTime = currentDate - nextDate;
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        streak++;
+        currentDate = nextDate;
+      } else if (diffDays > 1) {
+        break; // Gap detected, streak ends
+      }
+    }
+
+    return streak;
+  } catch (err) {
+    console.error('Error calculating daily streak:', err);
+    return 0;
+  }
+}
+
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
@@ -110,6 +181,7 @@ app.post('/api/auth/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, salt);
 
     // 🌟 FIXED: Added current_tier_id to prevent profiles from loading as blank/null units
+    // Force default environmental score / total_xp to start explicitly at 0
     const newUser = await pool.query(
       `INSERT INTO users (username, email, password_hash, total_xp, city, province, current_tier_id) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -118,7 +190,7 @@ app.post('/api/auth/register', async (req, res) => {
         finalUsername,
         email,
         passwordHash,
-        environmentalScore || 100,
+        0,
         city || 'Manila',
         province || 'Metro Manila',
         1 // 👈 Automatically seeds fresh accounts into baseline Tier 1
@@ -128,11 +200,17 @@ app.post('/api/auth/register', async (req, res) => {
     const createdUser = newUser.rows[0];
     const token = jwt.sign({ id: createdUser.uid }, JWT_SECRET, { expiresIn: '30d' });
 
+    // Log the user registration activity in activity_logs
+    await logUserActivity(createdUser.uid, 'Registered user account.');
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully in the cloud!',
       token,
-      user: createdUser
+      user: {
+        ...createdUser,
+        daily_streak: 0
+      }
     });
   } catch (err) {
     console.error('Registration SQL Error:', err.message);
@@ -165,6 +243,12 @@ app.post('/api/auth/login', async (req, res) => {
     // Signs token using your primary key column: user.uid
     const token = jwt.sign({ id: user.uid }, JWT_SECRET, { expiresIn: '30d' });
 
+    // Log the user login activity in activity_logs
+    await logUserActivity(user.uid, 'Logged in to account.');
+
+    // Fetch the daily streak
+    const streak = await getUserDailyStreak(user.uid);
+
     res.json({
       token,
       user: {
@@ -173,7 +257,8 @@ app.post('/api/auth/login', async (req, res) => {
         email: user.email,
         total_xp: user.total_xp,
         current_tier_id: user.current_tier_id,
-        tier_name: user.tier_name
+        tier_name: user.tier_name,
+        daily_streak: streak
       }
     });
   } catch (err) {
@@ -196,7 +281,10 @@ app.get('/api/users/me', protect, async (req, res) => {
       return res.status(404).json({ message: 'User profile not found' });
     }
 
-    return res.status(200).json(userResult.rows[0]);
+    const user = userResult.rows[0];
+    user.daily_streak = await getUserDailyStreak(req.userId);
+
+    return res.status(200).json(user);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -246,9 +334,15 @@ app.put('/api/users/me', protect, async (req, res) => {
       return res.status(404).json({ error: 'User profile not found' });
     }
     
+    const updatedUser = result.rows[0];
+    updatedUser.daily_streak = await getUserDailyStreak(req.userId);
+
+    // Log the profile update activity
+    await logUserActivity(req.userId, 'Updated user profile details.');
+
     return res.status(200).json({
       message: 'Profile updated successfully!',
-      user: result.rows[0]
+      user: updatedUser
     });
   } catch (err) {
     console.error('Update profile error:', err);
@@ -493,7 +587,10 @@ app.get('/api/users/:uid', protect, async (req, res) => {
       return res.status(404).json({ message: 'User profile not found' });
     }
 
-    return res.status(200).json(userResult.rows[0]);
+    const user = userResult.rows[0];
+    user.daily_streak = await getUserDailyStreak(user.uid);
+
+    return res.status(200).json(user);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -812,6 +909,9 @@ app.post('/api/missions/:id/complete', protect, async (req, res) => {
     // Add XP
     await pool.query('UPDATE users SET total_xp = total_xp + $1 WHERE uid = $2', [xp_reward, userId]);
 
+    // Log the mission completion activity
+    await logUserActivity(userId, `Completed mission: ${missionId}`);
+
     // Clear leaderboard cache so it dynamically updates
     await clearLeaderboardCache();
 
@@ -948,6 +1048,9 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
       `UPDATE users SET total_xp = total_xp + $1 WHERE uid = $2`,
       [awardedXp, req.userId]
     );
+
+    // Log the post creation activity
+    await logUserActivity(req.userId, `Created post: ${caption || ''}`);
 
     // Clear leaderboard cache so it dynamically updates
     await clearLeaderboardCache();
@@ -1091,6 +1194,9 @@ app.post('/api/posts/:id/like', protect, async (req, res) => {
       [postId, req.userId]
     );
     
+    // Log the like activity
+    await logUserActivity(req.userId, `Upvoted post: ${postId}`);
+
     // Send notification if a new like was registered
     if (likeRes.rows.length > 0) {
       const postRes = await pool.query('SELECT user_uid FROM posts WHERE id = $1', [postId]);
@@ -1116,6 +1222,10 @@ app.delete('/api/posts/:id/like', protect, async (req, res) => {
       'DELETE FROM post_likes WHERE post_id = $1 AND user_uid = $2',
       [postId, req.userId]
     );
+    
+    // Log the unlike activity
+    await logUserActivity(req.userId, `Removed upvote on post: ${postId}`);
+
     res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1133,6 +1243,10 @@ app.post('/api/posts/:id/downvote', protect, async (req, res) => {
       'INSERT INTO post_downvotes (post_id, user_uid) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [postId, req.userId]
     );
+
+    // Log the downvote activity
+    await logUserActivity(req.userId, `Downvoted post: ${postId}`);
+
     res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1146,6 +1260,10 @@ app.delete('/api/posts/:id/downvote', protect, async (req, res) => {
       'DELETE FROM post_downvotes WHERE post_id = $1 AND user_uid = $2',
       [postId, req.userId]
     );
+
+    // Log the remove downvote activity
+    await logUserActivity(req.userId, `Removed downvote on post: ${postId}`);
+
     res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1184,6 +1302,9 @@ app.post('/api/posts/:id/comment', protect, async (req, res) => {
       'INSERT INTO post_comments (post_id, user_uid, content) VALUES ($1, $2, $3) RETURNING *',
       [postId, req.userId, content]
     );
+
+    // Log the comment activity
+    await logUserActivity(req.userId, `Commented on post: ${postId}`);
 
     // Send notification to post owner
     const postRes = await pool.query('SELECT user_uid FROM posts WHERE id = $1', [postId]);
@@ -1380,6 +1501,8 @@ app.get('/api/missions/daily', protect, async (req, res) => {
       xp_month: 0,
       xp_year: 0
     };
+
+    analytics.daily_streak = await getUserDailyStreak(userId);
 
     // Fetch daily missions with user completions
     const missionsRes = await pool.query(

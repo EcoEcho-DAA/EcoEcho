@@ -119,6 +119,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         bytes,
         'profile_pic.jpg',
         {},
+        method: 'PUT',
       );
 
       if (!mounted) return;

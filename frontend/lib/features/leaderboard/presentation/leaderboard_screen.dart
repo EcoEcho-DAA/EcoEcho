@@ -66,27 +66,21 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final brandColor = isDark ? Colors.white : const Color(0xFF154212);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAF5),
-        elevation: 0,
         title: const Text(
           'Leaderboard',
-          style: TextStyle(
-            color: Color(0xFF154212),
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Be Vietnam Pro',
-          ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.filter_list, color: Color(0xFF154212)),
           onPressed: _showFilterSheet,
         ),
         actions: [
-
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF154212)),
+            icon: const Icon(Icons.refresh),
             onPressed: () {
               setState(() {
                 _leaderboardFuture = _fetchLeaderboardData();
@@ -104,7 +98,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               width: double.infinity,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFECEFEA),
+                color: isDark ? const Color(0xFF1D221C) : const Color(0xFFECEFEA),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
@@ -122,7 +116,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: _leaderboardType == 'global'
-                              ? const Color(0xFF154212)
+                              ? brandColor
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(24),
                         ),
@@ -131,8 +125,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           'Global',
                           style: TextStyle(
                             color: _leaderboardType == 'global'
-                                ? Colors.white
-                                : const Color(0xFF42493E),
+                                ? (isDark ? Colors.black : Colors.white)
+                                : (isDark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E)),
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
@@ -153,7 +147,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: _leaderboardType == 'friends'
-                              ? const Color(0xFF154212)
+                              ? brandColor
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(24),
                         ),
@@ -162,8 +156,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           'Buddies',
                           style: TextStyle(
                             color: _leaderboardType == 'friends'
-                                ? Colors.white
-                                : const Color(0xFF42493E),
+                                ? (isDark ? Colors.black : Colors.white)
+                                : (isDark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E)),
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
@@ -175,7 +169,73 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               ),
             ),
           ),
-
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: isDark ? Colors.grey.withOpacity(0.2) : const Color(0xFFC2C9BB)),
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final buttonWidth = (constraints.maxWidth - 6) / 4;
+                  return ToggleButtons(
+                    constraints: BoxConstraints.expand(width: buttonWidth, height: 36),
+                    isSelected: [
+                      _selectedTimeframe == 'daily',
+                      _selectedTimeframe == 'monthly',
+                      _selectedTimeframe == 'yearly',
+                      _selectedTimeframe == 'all-time',
+                    ],
+                    onPressed: (index) {
+                      final timeframes = ['daily', 'monthly', 'yearly', 'all-time'];
+                      if (_selectedTimeframe != timeframes[index]) {
+                        setState(() {
+                          _selectedTimeframe = timeframes[index];
+                          _leaderboardFuture = _fetchLeaderboardData();
+                        });
+                      }
+                    },
+                    color: isDark ? const Color(0xFFC2C9BB) : const Color(0xFF72796E),
+                    selectedColor: brandColor,
+                    fillColor: isDark ? const Color(0xFF1D221C) : const Color(0xFFC2C9BB).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(7),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Be Vietnam Pro',
+                      fontSize: 12,
+                    ),
+                    children: const [
+                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Daily'))),
+                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Monthly'))),
+                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Yearly'))),
+                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('All-Time'))),
+                    ],
+                  );
+                }
+              ),
+            ),
+          ),
+          // Geographic Filter Chips
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildGeoChip('All', 'all'),
+                  const SizedBox(width: 8),
+                  _buildGeoChip('City (${_userCity ?? 'Local'})', 'city'),
+                  const SizedBox(width: 8),
+                  _buildGeoChip('Province (${_userProvince ?? 'Local'})', 'province'),
+                  const SizedBox(width: 8),
+                  _buildGeoChip('Region (${_userRegion ?? 'Local'})', 'region'),
+                ],
+              ),
+            ),
+          ),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: _leaderboardFuture,
@@ -226,15 +286,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           final List<dynamic> listUsers = users.length > 3 ? users.sublist(3) : [];
 
           return Container(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             child: CustomScrollView(
               slivers: [
                 // Podium Section
                 SliverToBoxAdapter(
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF8FAF5),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -269,7 +329,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   ),
                 ),
                 const SliverToBoxAdapter(
-                  child: Divider(height: 1, thickness: 1, color: Color(0xFFE1E3DE)),
+                  child: Divider(height: 1, thickness: 1, color: Colors.transparent),
                 ),
                 // Rest of the Leaderboard
                 if (listUsers.isEmpty)
@@ -302,7 +362,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                             margin: const EdgeInsets.symmetric(vertical: 6.0),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 1,
-                            color: const Color(0xFFF8FAF5),
+                            color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1B2F1F) : const Color(0xFFF8FAF5),
                             child: ListTile(
                               onTap: () {
                                 if (user['uid'] != null) {
@@ -337,12 +397,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                               ),
                               title: Text(
                                 name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF191C1A),
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
-                              subtitle: Text('Tier: $tier', style: const TextStyle(color: Color(0xFF72796E), fontSize: 12)),
+                              subtitle: Text('Tier: $tier', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E), fontSize: 12)),
                               trailing: Text(
                                 '$xp XP',
                                 style: const TextStyle(
@@ -415,7 +475,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 border: Border.all(color: accentColor, width: 3),
                 boxShadow: [
                   BoxShadow(
-                    color: accentColor.withValues(alpha: 0.2),
+                    color: accentColor.withOpacity(0.2),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),
@@ -433,10 +493,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             // User Name
             Text(
               name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
-                color: Color(0xFF191C1A),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -467,9 +527,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.15),
+                color: accentColor.withOpacity(0.15),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+                border: Border.all(color: accentColor.withOpacity(0.3)),
               ),
               child: Center(
                 child: Text(
@@ -488,12 +548,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
   }
 
-  void _showFilterSheet() {
+void _showFilterSheet() {
     String tempTimeframe = _selectedTimeframe;
     String tempGeoFilter = _selectedGeoFilter;
 
     showModalBottomSheet(
       context: context,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -502,19 +563,22 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           builder: (BuildContext context, StateSetter setSheetState) {
             
             Widget buildGeoChip(String label, String value) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               final isSelected = tempGeoFilter == value;
               return ChoiceChip(
                 label: Text(
                   label,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF42493E),
+                    color: isSelected 
+                        ? (isDark ? Colors.black : Colors.white) 
+                        : (isDark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E)),
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
                 ),
                 selected: isSelected,
-                selectedColor: const Color(0xFF154212),
-                backgroundColor: const Color(0xFFECEFEA),
+                selectedColor: isDark ? Colors.white : const Color(0xFF154212),
+                backgroundColor: isDark ? const Color(0xFF1D221C) : const Color(0xFFECEFEA),
                 onSelected: (selected) {
                   if (selected) {
                     setSheetState(() {
@@ -526,6 +590,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             }
 
             Widget buildTimeframeButton(String label, String value) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               final isSelected = tempTimeframe == value;
               return Expanded(
                 child: GestureDetector(
@@ -537,8 +602,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     }
                   },
                   child: Container(
+                    height: 36,
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF154212) : Colors.transparent,
+                      color: isSelected 
+                          ? (isDark ? Colors.white : const Color(0xFF154212)) 
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(24),
                     ),
                     alignment: Alignment.center,
@@ -549,7 +617,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                         child: Text(
                           label,
                           style: TextStyle(
-                            color: isSelected ? Colors.white : const Color(0xFF42493E),
+                            color: isSelected 
+                                ? (isDark ? Colors.black : Colors.white) 
+                                : (isDark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E)),
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
@@ -568,28 +638,29 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Filters',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF154212),
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Timeframe',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF42493E),
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Container(
                       width: double.infinity,
-                      height: 40,
+                      height: 44,
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFECEFEA),
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1D221C) : const Color(0xFFECEFEA),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Row(
@@ -602,11 +673,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Location',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF42493E),
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -625,7 +696,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF154212),
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
@@ -649,6 +720,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             );
           },
         );
+      },
+    );
+  }
       },
     );
   }

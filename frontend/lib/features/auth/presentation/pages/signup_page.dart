@@ -1,6 +1,6 @@
 import 'package:frontend/features/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:ui';
 import '../bloc/auth_bloc.dart';
@@ -19,6 +19,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _ecoScoreController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -96,7 +97,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Image.asset(
-                    'assets/images/logo.png',
+                    'assets/images/eelogo.png',
                     width: 120,
                     height: 120,
                     errorBuilder: (context, error, stackTrace) => Icon(
@@ -133,12 +134,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white.withAlpha(178), // Fixed cross-platform compatible transparency alpha format
+                          color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E).withOpacity(0.7) : Colors.white.withOpacity(0.7), // Fixed cross-platform compatible transparency format
                           borderRadius: BorderRadius.circular(12.0),
-                          border: Border.all(color: colorScheme.outline.withAlpha(76)),
+                          border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
                           boxShadow: [
                             BoxShadow(
-                              color: colorScheme.shadow.withAlpha(10),
+                              color: colorScheme.shadow.withOpacity(0.04),
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             ),
@@ -162,9 +163,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.person_outline, color: colorScheme.onSurfaceVariant),
                                 hintText: 'Jane Doe',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withAlpha(128)),
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12.0), 
@@ -197,9 +198,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.mail_outline, color: colorScheme.onSurfaceVariant),
                                 hintText: 'jane@example.com',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withAlpha(128)),
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12.0), 
@@ -228,13 +229,24 @@ class _SignupScreenState extends State<SignupScreen> {
                             const SizedBox(height: 4),
                             TextField(
                               controller: _passwordController,
-                              obscureText: true,
+                              obscureText: _obscurePassword,
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.lock_outline, color: colorScheme.onSurfaceVariant),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                ),
                                 hintText: '••••••••',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withAlpha(128)),
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12.0), 
@@ -267,9 +279,9 @@ class _SignupScreenState extends State<SignupScreen> {
                               decoration: InputDecoration(
                                 prefixIcon: Icon(Icons.compost, color: colorScheme.onSurfaceVariant),
                                 hintText: '0.0',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withAlpha(128)),
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12.0), 

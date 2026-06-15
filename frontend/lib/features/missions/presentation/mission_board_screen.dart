@@ -151,7 +151,7 @@ class _MissionBoardViewState extends State<MissionBoardView> {
     final allTime = analytics['total_xp'] ?? 0;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+      margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -162,7 +162,7 @@ class _MissionBoardViewState extends State<MissionBoardView> {
         borderRadius: BorderRadius.circular(24.0),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF154212).withValues(alpha: 0.3),
+            color: const Color(0xFF154212).withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -185,7 +185,7 @@ class _MissionBoardViewState extends State<MissionBoardView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -208,6 +208,53 @@ class _MissionBoardViewState extends State<MissionBoardView> {
               _buildMetricBox('This Year', '+$thisYear'),
               _buildMetricBox('All-Time', '$allTime'),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakCounter(BuildContext context, Map<String, dynamic> analytics) {
+    final streak = analytics['daily_streak'] ?? 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      margin: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2E1C0C) : const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(
+          color: isDark ? Colors.orange.shade900.withOpacity(0.5) : Colors.orange.shade200,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.local_fire_department,
+            color: Colors.orange,
+            size: 28,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '$streak Day Streak!',
+            style: TextStyle(
+              color: isDark ? Colors.orange.shade300 : Colors.orange.shade900,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Be Vietnam Pro',
+            ),
+          ),
+          const Spacer(),
+          Text(
+            streak > 0 ? 'Keep it up!' : 'Start your streak today!',
+            style: TextStyle(
+              color: isDark ? Colors.orange.shade400 : Colors.orange.shade800,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+              fontFamily: 'Inter',
+            ),
           ),
         ],
       ),
@@ -240,58 +287,77 @@ class _MissionBoardViewState extends State<MissionBoardView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF5),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Screen Header Section
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(24.0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0x0A79564B),
-                    blurRadius: 16,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Missions',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF154212),
-                          fontFamily: 'Be Vietnam Pro',
+        child: DefaultTabController(
+          length: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Screen Header Section
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24.0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.black26 : const Color(0x0A79564B),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Daily Missions',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212),
+                            fontFamily: 'Be Vietnam Pro',
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 6),
-                      Text(
-                        'Complete tasks to earn XP and grow your eco-impact.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF72796E),
-                          fontFamily: 'Inter',
+                        IconButton(
+                          icon: Icon(Icons.refresh, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212)),
+                          onPressed: () {
+                            context.read<MissionsBloc>().add(FetchDailyMissions());
+                          },
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Complete tasks to earn XP rewards and grow your eco-impact.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E),
+                        fontFamily: 'Inter',
                       ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, color: Color(0xFF154212)),
-                    onPressed: () {
-                      context.read<MissionsBloc>().add(FetchAllMissions());
-                    },
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 16),
+                    TabBar(
+                      labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
+                      unselectedLabelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : const Color(0xFF72796E),
+                      indicatorColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
+                      indicatorWeight: 3.0,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        fontFamily: 'Be Vietnam Pro',
+                      ),
+                      tabs: const [
+                        Tab(text: 'Ongoing'),
+                        Tab(text: 'Completed'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
             
@@ -356,43 +422,16 @@ class _MissionBoardViewState extends State<MissionBoardView> {
                     final ongoingMissions = dailyMissions.where((m) => m['completed_at'] == null).toList();
                     final completedMissions = dailyMissions.where((m) => m['completed_at'] != null).toList();
 
-                    return RefreshIndicator(
-                      onRefresh: () async {
-                        context.read<MissionsBloc>().add(FetchAllMissions());
-                      },
-                      color: const Color(0xFF154212),
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildAnalyticsHeader(analytics),
-                            
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Daily Missions', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF154212), fontFamily: 'Be Vietnam Pro')),
-                                  PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert, color: Color(0xFF154212)),
-                                    onSelected: (value) {
-                                      if (value == 'toggle_completed') {
-                                        setState(() {
-                                          _showCompletedDailyMissions = !_showCompletedDailyMissions;
-                                        });
-                                      }
-                                    },
-                                    itemBuilder: (context) => [
-                                      CheckedPopupMenuItem<String>(
-                                        value: 'toggle_completed',
-                                        checked: _showCompletedDailyMissions,
-                                        child: const Text('Show completed missions'),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                      return Column(
+                        children: [
+                          _buildStreakCounter(context, analytics),
+                          _buildAnalyticsHeader(analytics),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                _buildMissionsTabList(context, ongoingMissions, false),
+                                _buildMissionsTabList(context, completedMissions, true),
+                              ],
                             ),
                             
                             if (ongoingMissions.isEmpty)
@@ -421,9 +460,20 @@ class _MissionBoardViewState extends State<MissionBoardView> {
                             const Divider(color: Color(0xFFE2E9DB), thickness: 8),
                             const SizedBox(height: 16),
 
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 20.0),
-                              child: Text('User Missions', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF154212), fontFamily: 'Be Vietnam Pro')),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                              child: Text(
+                                'User Missions', 
+                                style: TextStyle(
+                                  fontSize: 20, 
+                                  fontWeight: FontWeight.bold, 
+                                  // Fixes light-mode hardcoded color to support global dark mode theme
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? Colors.white 
+                                      : const Color(0xFF154212), 
+                                  fontFamily: 'Be Vietnam Pro',
+                                ),
+                              ),
                             ),
 
                             _buildFixedMissionsBoard(fixedMissions, prerequisites),
@@ -437,6 +487,37 @@ class _MissionBoardViewState extends State<MissionBoardView> {
 
                   return const SizedBox.shrink();
                 },
+  Widget _buildMissionsTabList(BuildContext context, List<dynamic> list, bool isCompleted) {
+    if (list.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isCompleted ? Icons.check_circle_outline : Icons.assignment_outlined,
+                size: 60,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFF72796E),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isCompleted ? 'No completed missions yet!' : 'No ongoing missions left!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E),
+                  fontFamily: 'Be Vietnam Pro',
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
               ),
             ),
           ],
@@ -479,10 +560,10 @@ class _MissionBoardViewState extends State<MissionBoardView> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
-          color: const Color(0xFFC2C9BB).withValues(alpha: 0.4),
+          color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.4),
         ),
         boxShadow: const [
           BoxShadow(
@@ -501,14 +582,17 @@ class _MissionBoardViewState extends State<MissionBoardView> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF2F4EF),
+                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFF2F4EF),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Image.asset(
                 _getMissionIcon(missionId, categoryId: categoryId),
-                color: const Color(0xFF154212),
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.green 
+                    : const Color(0xFF154212),
                 width: 24,
                 height: 24,
+              ),
               ),
             ),
             const SizedBox(width: 16),
@@ -520,19 +604,19 @@ class _MissionBoardViewState extends State<MissionBoardView> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF191C1A),
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontFamily: 'Be Vietnam Pro',
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF42493E),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E),
                       fontFamily: 'Inter',
                       height: 1.4,
                     ),
@@ -543,15 +627,15 @@ class _MissionBoardViewState extends State<MissionBoardView> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF154212).withValues(alpha: 0.08),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.green.withOpacity(0.15) : const Color(0xFF154212).withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '+$xpReward XP',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF154212),
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF154212),
                       ),
                     ),
                   ),
@@ -567,14 +651,14 @@ class _MissionBoardViewState extends State<MissionBoardView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Icon(Icons.check_circle, color: Color(0xFF154212), size: 24),
+                  Icon(Icons.check_circle, color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212), size: 24),
                   const SizedBox(height: 4),
                   Text(
                     'Completed on ${_formatHumanDate(completedAt)}',
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
-                      color: Color(0xFF72796E),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E),
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w500,
                     ),
@@ -585,7 +669,7 @@ class _MissionBoardViewState extends State<MissionBoardView> {
               ElevatedButton(
                 onPressed: navigateToUpload,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF154212),
+                  backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

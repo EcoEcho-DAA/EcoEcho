@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:screenshot/screenshot.dart';
 import 'package:shared_preferences/shared_preferences.dart';  
 import 'ecowrap_trophy_widget.dart';
@@ -424,24 +424,24 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
   Widget _buildPageFiveSummary() => EcoWrapBackground(
     page: EcoWrapPage.summary,
     child: Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       child: Column(
         children: [
           Image.asset(
-            'assets/images/logo.png',
-            width: 120,
-            height: 120,
+            'assets/images/eelogo.png',
+            width: 80,
+            height: 80,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           const Text(
             'EcoWrapped 2026 Recap',
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
               color: Color(0xFF386A2B),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Expanded(
             child: EcoWrapBentoGrid(
               tierName: _wrappedData?['tier_name'] ?? 'Seed',
@@ -451,11 +451,11 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
               totalXp: _wrappedData?['total_xp'] ?? 0,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           // 1. Share in App Feed button
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 44,
             child: ElevatedButton.icon(
               onPressed: () => EcoWrapShare.shareInApp(
                 context: context,
@@ -473,18 +473,18 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
                 ),
                 elevation: 0,
               ),
-              icon: const Icon(Icons.forum_rounded, size: 20),
+              icon: const Icon(Icons.forum_rounded, size: 18),
               label: const Text(
                 'Share in App Feed',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           // 2. Download as PNG button
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 44,
             child: OutlinedButton.icon(
               onPressed: () => EcoWrapShare.downloadPng(
                 context: context,
@@ -501,14 +501,14 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              icon: const Icon(Icons.download_rounded, size: 20),
+              icon: const Icon(Icons.download_rounded, size: 18),
               label: const Text(
                 'Download as PNG',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
         ],
       ),
     ),

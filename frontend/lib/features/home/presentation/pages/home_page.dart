@@ -766,7 +766,7 @@ class _HomePageState extends State<HomePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Image.asset(
-                    'assets/images/logo.png',
+                    'assets/images/eelogo.png',
                     height: 28,
                     errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.eco,

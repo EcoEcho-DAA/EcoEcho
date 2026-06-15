@@ -19,13 +19,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLoading());
       try {
         // Map the frontend form parameters to exactly what the backend index.js schema expects
-        final Map<String, dynamic> signupPayload = {
-          'username': event.email.split('@')[0], // Creates a unique fallback username handler string
-          'first_name': event.username,          // Maps the form's "Full Name" input field to first_name
-          'email': event.email,
-          'password': event.password,
-          'city': 'Manila',                      // Default fallback parameter string
-        };
+          final Map<String, dynamic> signupPayload = {
+            'username': event.email.split('@')[0], // fallback username
+            'first_name': event.username, // maps Full Name
+            'email': event.email,
+            'password': event.password,
+            // Use provided location fields if available, else fallback to empty strings
+            'region': event.region ?? '',
+            'province': event.province ?? '',
+            'city': event.city ?? '',
+          };
 
         final response = await ApiService.post('/api/auth/register', signupPayload);
 

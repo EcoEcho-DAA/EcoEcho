@@ -29,20 +29,25 @@ class _LoginScreenState extends State<LoginScreen> {
   void _submitLogin() {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-
-    if (email.isNotEmpty && password.isNotEmpty) {
-      context.read<AuthBloc>().add(
-            LoginRequested(email: email, password: password),
-          );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all fields'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+    context.read<AuthBloc>().add(LoginRequested(email: email, password: password));
   }
+
+  void _showForgotPasswordHelp() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Need Help?'),
+        content: const Text('Contact us for password assistance:\ncontactjkeaviles@gmail.com\nroxanek.esquejo@gmail.com'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -179,9 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             GestureDetector(
-                              onTap: () {
-                                // to put: forgot pass
-                              },
+                              onTap: _showForgotPasswordHelp,
                               child: Text(
                                 'Forgot?', 
                                 style: textTheme.bodyMedium?.copyWith(

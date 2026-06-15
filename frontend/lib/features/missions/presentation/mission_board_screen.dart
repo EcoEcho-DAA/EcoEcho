@@ -129,7 +129,7 @@ class MissionBoardView extends StatelessWidget {
     final allTime = analytics['total_xp'] ?? 0;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+      margin: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -140,7 +140,7 @@ class MissionBoardView extends StatelessWidget {
         borderRadius: BorderRadius.circular(24.0),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF154212).withValues(alpha: 0.3),
+            color: const Color(0xFF154212).withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -163,7 +163,7 @@ class MissionBoardView extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -186,6 +186,53 @@ class MissionBoardView extends StatelessWidget {
               _buildMetricBox('This Year', '+$thisYear'),
               _buildMetricBox('All-Time', '$allTime'),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakCounter(BuildContext context, Map<String, dynamic> analytics) {
+    final streak = analytics['daily_streak'] ?? 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      margin: const EdgeInsets.only(left: 20.0, right: 20.0, top: 12.0, bottom: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2E1C0C) : const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(
+          color: isDark ? Colors.orange.shade900.withOpacity(0.5) : Colors.orange.shade200,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.local_fire_department,
+            color: Colors.orange,
+            size: 28,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '$streak Day Streak!',
+            style: TextStyle(
+              color: isDark ? Colors.orange.shade300 : Colors.orange.shade900,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Be Vietnam Pro',
+            ),
+          ),
+          const Spacer(),
+          Text(
+            streak > 0 ? 'Keep it up!' : 'Start your streak today!',
+            style: TextStyle(
+              color: isDark ? Colors.orange.shade400 : Colors.orange.shade800,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+              fontFamily: 'Inter',
+            ),
           ),
         ],
       ),
@@ -218,7 +265,7 @@ class MissionBoardView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF5),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: DefaultTabController(
           length: 2,
@@ -228,14 +275,14 @@ class MissionBoardView extends StatelessWidget {
               // Screen Header Section
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(24.0)),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24.0)),
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0x0A79564B),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.black26 : const Color(0x0A79564B),
                       blurRadius: 16,
-                      offset: Offset(0, 4),
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
@@ -245,17 +292,17 @@ class MissionBoardView extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Daily Missions',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF154212),
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212),
                             fontFamily: 'Be Vietnam Pro',
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.refresh, color: Color(0xFF154212)),
+                          icon: Icon(Icons.refresh, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212)),
                           onPressed: () {
                             context.read<MissionsBloc>().add(FetchDailyMissions());
                           },
@@ -263,26 +310,26 @@ class MissionBoardView extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Complete tasks to earn XP rewards and grow your eco-impact.',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF72796E),
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E),
                         fontFamily: 'Inter',
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const TabBar(
-                      labelColor: Color(0xFF154212),
-                      unselectedLabelColor: Color(0xFF72796E),
-                      indicatorColor: Color(0xFF154212),
+                    TabBar(
+                      labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
+                      unselectedLabelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : const Color(0xFF72796E),
+                      indicatorColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
                       indicatorWeight: 3.0,
-                      labelStyle: TextStyle(
+                      labelStyle: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                         fontFamily: 'Be Vietnam Pro',
                       ),
-                      tabs: [
+                      tabs: const [
                         Tab(text: 'Ongoing'),
                         Tab(text: 'Completed'),
                       ],
@@ -352,6 +399,7 @@ class MissionBoardView extends StatelessWidget {
 
                       return Column(
                         children: [
+                          _buildStreakCounter(context, analytics),
                           _buildAnalyticsHeader(analytics),
                           Expanded(
                             child: TabBarView(
@@ -387,16 +435,16 @@ class MissionBoardView extends StatelessWidget {
               Icon(
                 isCompleted ? Icons.check_circle_outline : Icons.assignment_outlined,
                 size: 60,
-                color: const Color(0xFF72796E),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFF72796E),
               ),
               const SizedBox(height: 12),
               Text(
                 isCompleted ? 'No completed missions yet!' : 'No ongoing missions left!',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF42493E),
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E),
                   fontFamily: 'Be Vietnam Pro',
                 ),
               ),
@@ -455,10 +503,10 @@ class MissionBoardView extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
-          color: const Color(0xFFC2C9BB).withValues(alpha: 0.4),
+          color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.4),
         ),
         boxShadow: const [
           BoxShadow(
@@ -477,12 +525,12 @@ class MissionBoardView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF2F4EF),
+                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFF2F4EF),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.energy_savings_leaf,
-                color: Color(0xFF154212),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
                 size: 24,
               ),
             ),
@@ -495,19 +543,19 @@ class MissionBoardView extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF191C1A),
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontFamily: 'Be Vietnam Pro',
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF42493E),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E),
                       fontFamily: 'Inter',
                       height: 1.4,
                     ),
@@ -518,15 +566,15 @@ class MissionBoardView extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF154212).withValues(alpha: 0.08),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.green.withOpacity(0.15) : const Color(0xFF154212).withOpacity(0.08),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '+$xpReward XP',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF154212),
+                        color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF154212),
                       ),
                     ),
                   ),
@@ -542,14 +590,14 @@ class MissionBoardView extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Icon(Icons.check_circle, color: Color(0xFF154212), size: 24),
+                  Icon(Icons.check_circle, color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212), size: 24),
                   const SizedBox(height: 4),
                   Text(
                     'Completed on ${_formatHumanDate(completedAt)}',
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
-                      color: Color(0xFF72796E),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E),
                       fontFamily: 'Inter',
                       fontWeight: FontWeight.w500,
                     ),
@@ -560,7 +608,7 @@ class MissionBoardView extends StatelessWidget {
               ElevatedButton(
                 onPressed: navigateToUpload,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF154212),
+                  backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

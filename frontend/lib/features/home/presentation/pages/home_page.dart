@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
@@ -24,6 +24,7 @@ class _HomePageState extends State<HomePage> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String? _currentUserUid;
+  String? _currentUsername;
 
   int _notificationCount = 0;
   List<dynamic> _pendingRequests = [];
@@ -45,11 +46,39 @@ class _HomePageState extends State<HomePage> {
         final data = jsonDecode(response.body);
         setState(() {
           _currentUserUid = data['uid'];
+          _currentUsername = data['username'];
         });
       }
     } catch (e) {
       debugPrint('Error fetching current user info: $e');
     }
+  }
+
+  Widget _buildGreetingHeader() {
+    final hour = DateTime.now().hour;
+    String timeOfDay;
+    if (hour >= 5 && hour < 12) {
+      timeOfDay = 'morning';
+    } else if (hour >= 12 && hour < 17) {
+      timeOfDay = 'afternoon';
+    } else if (hour >= 17 && hour < 22) {
+      timeOfDay = 'evening';
+    } else {
+      timeOfDay = 'night';
+    }
+    final name = _currentUsername ?? 'Eco Warrior';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
+      child: Text(
+        'Good $timeOfDay, $name !',
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212),
+          fontFamily: 'Outfit',
+        ),
+      ),
+    );
   }
 
   void _selectImageSource(BuildContext context, {int? missionId, int? categoryId, bool isProfilePicMode = false, VoidCallback? onSuccess}) {
@@ -381,14 +410,14 @@ class _HomePageState extends State<HomePage> {
                   child: Column(
                     children: [
                       Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF8FAF5),
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFF8FAF5),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                         ),
-                        child: const TabBar(
-                          labelColor: Color(0xFF154212),
-                          unselectedLabelColor: Color(0xFF72796E),
-                          indicatorColor: Color(0xFF154212),
+                        child: TabBar(
+                          labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
+                          unselectedLabelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : const Color(0xFF72796E),
+                          indicatorColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
                           tabs: [
                             Tab(
                               icon: Icon(Icons.person_add_outlined),
@@ -606,7 +635,7 @@ class _HomePageState extends State<HomePage> {
             }
           },
           child: Container(
-            color: isRead ? Colors.transparent : const Color(0xFF154212).withOpacity(0.05),
+            color: isRead ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.green.withOpacity(0.1) : const Color(0xFF154212).withOpacity(0.05)),
             padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
             child: Row(
               children: [
@@ -625,13 +654,13 @@ class _HomePageState extends State<HomePage> {
                               style: TextStyle(
                                 fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
                                 fontSize: 13,
-                                color: const Color(0xFF191C1A),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
                           Text(
                             _formatRelativeTime(timeStr),
-                            style: const TextStyle(color: Color(0xFF72796E), fontSize: 10),
+                            style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E), fontSize: 10),
                           ),
                         ],
                       ),
@@ -640,7 +669,7 @@ class _HomePageState extends State<HomePage> {
                         message,
                         style: TextStyle(
                           fontSize: 12,
-                          color: isRead ? const Color(0xFF72796E) : const Color(0xFF191C1A),
+                          color: isRead ? (Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E)) : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -651,8 +680,8 @@ class _HomePageState extends State<HomePage> {
                     width: 8,
                     height: 8,
                     margin: const EdgeInsets.only(left: 8),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF154212),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -684,14 +713,14 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF5),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAF5),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leadingWidth: 56,
         leading: _isSearching
             ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF154212)),
+                icon: Icon(Icons.arrow_back, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212)),
                 onPressed: () {
                   setState(() {
                     _isSearching = false;
@@ -700,7 +729,7 @@ class _HomePageState extends State<HomePage> {
                 },
               )
             : IconButton(
-                icon: const Icon(Icons.search, color: Color(0xFF154212)),
+                icon: Icon(Icons.search, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212)),
                 onPressed: () {
                   setState(() {
                     _isSearching = true;
@@ -723,7 +752,7 @@ class _HomePageState extends State<HomePage> {
                 },
               )
             : Image.asset(
-                'assets/images/logo.png',
+                'assets/images/eelogo.png',
                 height: 28,
                 errorBuilder: (context, error, stackTrace) => const Text(
                   'EcoEcho',
@@ -772,6 +801,7 @@ class _HomePageState extends State<HomePage> {
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          _buildGreetingHeader(),
           _buildLogActivitySection(),
           const SizedBox(height: 24),
           _buildFeedToggle(),
@@ -910,9 +940,9 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.3)),
+        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.3)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF79574C).withOpacity(0.04),
@@ -929,15 +959,15 @@ class _HomePageState extends State<HomePage> {
             child: Icon(Icons.add_a_photo, color: Color(0xFF9DD090), size: 28),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Log Green Activity',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF191C1A)),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Upload a photo to earn XP and inspire the community.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF42493E), fontSize: 14),
+            style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontSize: 14),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
@@ -950,7 +980,7 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.upload, size: 18),
             label: const Text('Upload Proof', style: TextStyle(fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF154212),
+              backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -965,7 +995,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildFeedToggle() {
     return Container(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: const Color(0xFFC2C9BB).withOpacity(0.3))),
+        border: Border(bottom: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.3))),
       ),
       child: Row(
         children: [
@@ -977,7 +1007,7 @@ class _HomePageState extends State<HomePage> {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color: _isCommunityFeed ? const Color(0xFF154212) : Colors.transparent,
+                      color: _isCommunityFeed ? (Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)) : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -986,7 +1016,9 @@ class _HomePageState extends State<HomePage> {
                   'Community',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: _isCommunityFeed ? const Color(0xFF154212) : const Color(0xFF42493E),
+                    color: _isCommunityFeed 
+                      ? (Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)) 
+                      : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
                   ),
@@ -1002,7 +1034,7 @@ class _HomePageState extends State<HomePage> {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color: !_isCommunityFeed ? const Color(0xFF154212) : Colors.transparent,
+                      color: !_isCommunityFeed ? (Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)) : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -1011,7 +1043,9 @@ class _HomePageState extends State<HomePage> {
                   'Buddies',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: !_isCommunityFeed ? const Color(0xFF154212) : const Color(0xFF42493E),
+                    color: !_isCommunityFeed 
+                      ? (Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)) 
+                      : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
                   ),
@@ -1356,9 +1390,9 @@ class _PostCardState extends State<PostCard> {
       child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.3)),
+        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.3)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF79574C).withOpacity(0.04),
@@ -1401,11 +1435,11 @@ class _PostCardState extends State<PostCard> {
                       children: [
                         Text(
                           name,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF191C1A)),
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
                         ),
                         Text(
                           _formatRelativeTime(widget.postData['created_at']),
-                          style: const TextStyle(color: Color(0xFF42493E), fontSize: 12),
+                          style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontSize: 12),
                         ),
                       ],
                     ),
@@ -1454,7 +1488,7 @@ class _PostCardState extends State<PostCard> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFE7E9E4),
+              color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1B2F1F) : const Color(0xFFE7E9E4),
               border: Border.all(color: const Color(0xFF2D5934).withOpacity(0.2)),
               borderRadius: BorderRadius.circular(6),
             ),
@@ -1465,7 +1499,7 @@ class _PostCardState extends State<PostCard> {
                 const SizedBox(width: 6),
                 Text(
                   tagText,
-                  style: const TextStyle(color: Color(0xFF2D5934), fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF2D5934), fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -1473,7 +1507,7 @@ class _PostCardState extends State<PostCard> {
           const SizedBox(height: 12),
           Text(
             content,
-            style: const TextStyle(fontSize: 16, color: Color(0xFF191C1A), height: 1.5),
+            style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurface, height: 1.5),
           ),
           const SizedBox(height: 12),
           if (imageUrl != null && imageUrl.isNotEmpty)
@@ -1488,10 +1522,10 @@ class _PostCardState extends State<PostCard> {
                   height: 220,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFECEFEA),
+                    color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFECEFEA),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.image_not_supported, size: 48, color: Color(0xFFC2C9BB)),
+                  child: Icon(Icons.image_not_supported, size: 48, color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFFC2C9BB)),
                 ),
               ),
             )
@@ -1500,13 +1534,13 @@ class _PostCardState extends State<PostCard> {
               height: 220,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: const Color(0xFFECEFEA),
+                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFECEFEA),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.image, size: 48, color: Color(0xFFC2C9BB)),
+              child: Icon(Icons.image, size: 48, color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFFC2C9BB)),
             ),
           const SizedBox(height: 16),
-          Divider(height: 1, color: const Color(0xFFC2C9BB).withOpacity(0.2)),
+          Divider(height: 1, color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.2)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -1516,14 +1550,14 @@ class _PostCardState extends State<PostCard> {
                   children: [
                     Icon(
                       isLiked ? Icons.arrow_circle_up : Icons.arrow_circle_up_outlined,
-                      color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
-                      size: 22,
+                      color: isLiked ? const Color(0xFF00C853) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
+                      size: isLiked ? 25 : 22,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       likesCount.toString(),
                       style: TextStyle(
-                        color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
+                        color: isLiked ? const Color(0xFF00C853) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -1538,14 +1572,14 @@ class _PostCardState extends State<PostCard> {
                   children: [
                     Icon(
                       isDownvoted ? Icons.arrow_circle_down : Icons.arrow_circle_down_outlined,
-                      color: isDownvoted ? const Color(0xFFBA1A1A) : const Color(0xFF42493E),
+                      color: isDownvoted ? const Color(0xFFBA1A1A) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                       size: 22,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       downvotesCount.toString(),
                       style: TextStyle(
-                        color: isDownvoted ? const Color(0xFFBA1A1A) : const Color(0xFF42493E),
+                        color: isDownvoted ? const Color(0xFFBA1A1A) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -1558,11 +1592,11 @@ class _PostCardState extends State<PostCard> {
                 onTap: _showCommentSheet,
                 child: Row(
                   children: [
-                    const Icon(Icons.chat_bubble_outline, color: Color(0xFF42493E), size: 22),
+                    Icon(Icons.chat_bubble_outline, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), size: 22),
                     const SizedBox(width: 8),
                     Text(
                       commentsCount.toString(),
-                      style: const TextStyle(color: Color(0xFF42493E), fontWeight: FontWeight.w600, fontSize: 12),
+                      style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontWeight: FontWeight.w600, fontSize: 12),
                     ),
                   ],
                 ),
@@ -1731,9 +1765,9 @@ class _CommentSheetState extends State<CommentSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -1747,13 +1781,13 @@ class _CommentSheetState extends State<CommentSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Color(0xFFC2C9BB),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white24 : const Color(0xFFC2C9BB),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const Text(
+            Text(
               'Comments',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212)),
             ),
             const Divider(),
             if (isLoading)
@@ -1794,7 +1828,7 @@ class _CommentSheetState extends State<CommentSheet> {
                                   children: [
                                     Text(
                                       comment['author_name'] ?? 'Unknown User',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF191C1A)),
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
                                     ),
                                     const Spacer(),
                                     if (currentUserUid != null && comment['user_uid'] == currentUserUid)
@@ -1809,7 +1843,7 @@ class _CommentSheetState extends State<CommentSheet> {
                                 const SizedBox(height: 4),
                                 Text(
                                   comment['content'] ?? '',
-                                  style: const TextStyle(fontSize: 14, color: Color(0xFF42493E)),
+                                  style: TextStyle(fontSize: 14, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                                 ),
                                 const SizedBox(height: 6),
                                 CommentVoteButton(
@@ -1844,7 +1878,7 @@ class _CommentSheetState extends State<CommentSheet> {
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: const Color(0xFFECEFEA),
+                        fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFECEFEA),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
                       textInputAction: TextInputAction.send,
@@ -1858,7 +1892,7 @@ class _CommentSheetState extends State<CommentSheet> {
                           child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
                         )
                       : IconButton(
-                          icon: const Icon(Icons.send, color: Color(0xFF154212)),
+                          icon: Icon(Icons.send, color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)),
                           onPressed: _postComment,
                         ),
                 ],
@@ -1983,14 +2017,14 @@ class _CommentVoteButtonState extends State<CommentVoteButton> {
             children: [
               Icon(
                 isLiked ? Icons.arrow_circle_up : Icons.arrow_circle_up_outlined,
-                color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
+                color: isLiked ? const Color(0xFF00C853) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                 size: 18,
               ),
               const SizedBox(width: 4),
               Text(
                 likesCount.toString(),
                 style: TextStyle(
-                  color: isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
+                  color: isLiked ? const Color(0xFF00C853) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
@@ -2005,14 +2039,14 @@ class _CommentVoteButtonState extends State<CommentVoteButton> {
             children: [
               Icon(
                 isDownvoted ? Icons.arrow_circle_down : Icons.arrow_circle_down_outlined,
-                color: isDownvoted ? const Color(0xFFBA1A1A) : const Color(0xFF42493E),
+                color: isDownvoted ? const Color(0xFFBA1A1A) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                 size: 18,
               ),
               const SizedBox(width: 4),
               Text(
                 downvotesCount.toString(),
                 style: TextStyle(
-                  color: isDownvoted ? const Color(0xFFBA1A1A) : const Color(0xFF42493E),
+                  color: isDownvoted ? const Color(0xFFBA1A1A) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),

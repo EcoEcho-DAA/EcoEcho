@@ -199,14 +199,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF5),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAF5),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF154212)),
-        title: const Text(
+        iconTheme: IconThemeData(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212)),
+        title: Text(
           'Post Details',
-          style: TextStyle(color: Color(0xFF154212), fontWeight: FontWeight.bold),
+          style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212), fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -260,16 +260,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               },
                               child: Text(
                                 authorName,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 17,
-                                  color: Color(0xFF191C1A),
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                             ),
                             Text(
                               _formatRelativeTime(_post['created_at']),
-                              style: const TextStyle(color: Color(0xFF72796E), fontSize: 13),
+                              style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E), fontSize: 13),
                             ),
                           ],
                         ),
@@ -299,7 +299,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE7E9E4),
+                      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1B2F1F) : const Color(0xFFE7E9E4),
                       border: Border.all(color: const Color(0xFF2D5934).withOpacity(0.2)),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -310,8 +310,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         const SizedBox(width: 8),
                         Text(
                           tagText,
-                          style: const TextStyle(
-                            color: Color(0xFF2D5934),
+                          style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF2D5934),
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -324,9 +324,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   // Caption / Content (Made bigger!)
                   Text(
                     caption,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 19, // Prominent font size
-                      color: Color(0xFF191C1A),
+                      color: Theme.of(context).colorScheme.onSurface,
                       height: 1.5,
                       fontWeight: FontWeight.w400,
                     ),
@@ -345,10 +345,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           height: 250,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFECEFEA),
+                            color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFECEFEA),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Icon(Icons.image_not_supported, size: 48, color: Color(0xFFC2C9BB)),
+                          child: Icon(Icons.image_not_supported, size: 48, color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFFC2C9BB)),
                         ),
                       ),
                     )
@@ -357,10 +357,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       height: 250,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFECEFEA),
+                        color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFECEFEA),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(Icons.image, size: 48, color: Color(0xFFC2C9BB)),
+                      child: Icon(Icons.image, size: 48, color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFFC2C9BB)),
                     ),
                   const SizedBox(height: 20),
 
@@ -368,39 +368,39 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       border: Border(
-                        top: BorderSide(color: Color(0xFFE0E0E0), width: 0.8),
-                        bottom: BorderSide(color: Color(0xFFE0E0E0), width: 0.8),
+                        top: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFE0E0E0), width: 0.8),
+                        bottom: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFE0E0E0), width: 0.8),
                       ),
                     ),
                     child: Row(
                       children: [
                         Text(
                           '$_likesCount',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF191C1A)),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
                         ),
-                        const Text(
+                        Text(
                           ' Upvotes',
-                          style: TextStyle(color: Color(0xFF72796E), fontSize: 15),
+                          style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E), fontSize: 15),
                         ),
                         const SizedBox(width: 20),
                         Text(
                           '$_downvotesCount',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF191C1A)),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
                         ),
-                        const Text(
+                        Text(
                           ' Downvotes',
-                          style: TextStyle(color: Color(0xFF72796E), fontSize: 15),
+                          style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E), fontSize: 15),
                         ),
                         const SizedBox(width: 20),
                         Text(
                           '$_commentsCount',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF191C1A)),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
                         ),
-                        const Text(
+                        Text(
                           ' Comments',
-                          style: TextStyle(color: Color(0xFF72796E), fontSize: 15),
+                          style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E), fontSize: 15),
                         ),
                       ],
                     ),
@@ -415,23 +415,23 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         IconButton(
                           icon: Icon(
                             _isLiked ? Icons.arrow_circle_up : Icons.arrow_circle_up_outlined,
-                            color: _isLiked ? const Color(0xFF154212) : const Color(0xFF42493E),
-                            size: 26,
+                            color: _isLiked ? const Color(0xFF00C853) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
+                            size: _isLiked ? 28 : 26,
                           ),
                           onPressed: _toggleLike,
                         ),
                         IconButton(
                           icon: Icon(
                             _isDownvoted ? Icons.arrow_circle_down : Icons.arrow_circle_down_outlined,
-                            color: _isDownvoted ? const Color(0xFFBA1A1A) : const Color(0xFF42493E),
+                            color: _isDownvoted ? const Color(0xFFBA1A1A) : (Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                             size: 26,
                           ),
                           onPressed: _toggleDownvote,
                         ),
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.chat_bubble_outline,
-                            color: Color(0xFF42493E),
+                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E),
                             size: 24,
                           ),
                           onPressed: () {
@@ -442,16 +442,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                   ),
 
-                  const Divider(height: 1, color: Color(0xFFE0E0E0)),
+                  Divider(height: 1, color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFE0E0E0)),
                   const SizedBox(height: 16),
 
                   // Inline Comments List Header
-                  const Text(
+                  Text(
                     'Comments',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF154212),
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -477,7 +477,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _comments.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) => Divider(height: 1, color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFE0E0E0)),
                       itemBuilder: (context, index) {
                         final comment = _comments[index];
                         final author = comment['author_name'] ?? 'Unknown User';
@@ -491,7 +491,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 18,
-                                backgroundColor: const Color(0xFFECEFEA),
+                                backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFECEFEA),
                                 backgroundImage: NetworkImage(
                                   comment['profile_pic_url'] ?? 'https://cgchzvlunkatpjvpuluz.supabase.co/storage/v1/object/public/post-images/avatar-placeholder.png'
                                 ),
@@ -506,16 +506,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                       children: [
                                         Text(
                                           author,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
-                                            color: Color(0xFF191C1A),
+                                            color: Theme.of(context).colorScheme.onSurface,
                                           ),
                                         ),
                                         Text(
                                           _formatRelativeTime(cTime),
-                                          style: const TextStyle(
-                                            color: Color(0xFF72796E),
+                                          style: TextStyle(
+                                            color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E),
                                             fontSize: 11,
                                           ),
                                         ),
@@ -524,9 +524,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                     const SizedBox(height: 4),
                                     Text(
                                       body,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
-                                        color: Color(0xFF42493E),
+                                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E),
                                         height: 1.3,
                                       ),
                                     ),
@@ -552,7 +552,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               bottom: 8 + MediaQuery.of(context).padding.bottom,
             ),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -569,9 +569,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     focusNode: _commentFocusNode,
                     decoration: InputDecoration(
                       hintText: 'Post your comment...',
-                      hintStyle: const TextStyle(color: Color(0xFF72796E)),
+                      hintStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white54 : const Color(0xFF72796E)),
                       filled: true,
-                      fillColor: const Color(0xFFF1F3EE),
+                      fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFF1F3EE),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -583,7 +583,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(Icons.send, color: Color(0xFF154212)),
+                  icon: Icon(Icons.send, color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)),
                   onPressed: _postComment,
                 ),
               ],

@@ -713,6 +713,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final provinceController = TextEditingController(text: currentData['province']);
     final regionController = TextEditingController(text: currentData['region'] ?? '');
     final bioController = TextEditingController(text: currentData['bio'] ?? '');
+    final isNCR = currentData['region']?.toString().toUpperCase().contains('NCR') ?? false;
 
     showDialog(
       context: context,
@@ -737,19 +738,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: cityController,
-                decoration: const InputDecoration(
-                  labelText: 'City',
-                  labelStyle: TextStyle(color: Color(0xFF154212)),
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
+                decoration: InputDecoration(
+                  labelText: isNCR ? 'District' : 'City',
+                  labelStyle: const TextStyle(color: Color(0xFF154212)),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: provinceController,
-                decoration: const InputDecoration(
-                  labelText: 'Province',
-                  labelStyle: TextStyle(color: Color(0xFF154212)),
-                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
+                decoration: InputDecoration(
+                  labelText: isNCR ? 'City' : 'Province',
+                  labelStyle: const TextStyle(color: Color(0xFF154212)),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF154212))),
                 ),
               ),
               const SizedBox(height: 12),

@@ -648,8 +648,8 @@ void _showFilterSheet() {
                       runSpacing: 8.0,
                       children: [
                         buildGeoChip('All', 'all'),
-                        buildGeoChip('City (${_userCity ?? 'Local'})', 'city'),
-                        buildGeoChip('Province (${_userProvince ?? 'Local'})', 'province'),
+                        buildGeoChip('${(_userRegion?.toUpperCase().contains('NCR') ?? false) ? 'District' : 'City'} (${_userCity ?? 'Local'})', 'city'),
+                        buildGeoChip('${(_userRegion?.toUpperCase().contains('NCR') ?? false) ? 'City' : 'Province'} (${_userProvince ?? 'Local'})', 'province'),
                         buildGeoChip('Region (${_userRegion ?? 'Local'})', 'region'),
                       ],
                     ),

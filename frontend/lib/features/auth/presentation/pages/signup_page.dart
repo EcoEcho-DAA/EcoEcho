@@ -20,7 +20,9 @@ class _SignupScreenState extends State<SignupScreen> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   // Location data
   List<dynamic> _allRegions = [];
@@ -58,6 +60,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -65,30 +68,9 @@ class _SignupScreenState extends State<SignupScreen> {
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
-    if (username.isNotEmpty && email.isNotEmpty && password.isNotEmpty) {
-      final accepted = await _showTermsAndConditions();
-      if (!accepted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('You must accept the terms and conditions to create an account.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-        return;
-      }
-      context.read<AuthBloc>().add(
-        SignupRequested(
-          username: username,
-          email: email,
-          password: password,
-          ecoScore: 0.0,
-          region: _selectedRegion?['regDesc'],
-          province: _selectedProvince?['provDesc'],
-          city: _selectedCity?['citymunDesc'],
-        ),
-      );
-    } else {
+    if (username.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       final theme = Theme.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -96,7 +78,64 @@ class _SignupScreenState extends State<SignupScreen> {
           backgroundColor: theme.colorScheme.error,
         ),
       );
+      return;
     }
+
+    if (password != confirmPassword) {
+      final theme = Theme.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Passwords do not match.'),
+          backgroundColor: theme.colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    if (!email.contains('@')) {
+      final theme = Theme.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter a valid email address containing "@".'),
+          backgroundColor: theme.colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    if (password.length <= 8 || !password.contains(RegExp(r'[a-zA-Z]')) || !password.contains(RegExp(r'[0-9]'))) {
+      final theme = Theme.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Password must be longer than 8 characters and contain both numbers and letters.'),
+          backgroundColor: theme.colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    final accepted = await _showTermsAndConditions();
+    if (!accepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('You must accept the terms and conditions to create an account.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+    
+    context.read<AuthBloc>().add(
+      SignupRequested(
+        username: username,
+        email: email,
+        password: password,
+        ecoScore: 0.0,
+        region: _selectedRegion?['regDesc'],
+        province: _selectedProvince?['provDesc'],
+        city: _selectedCity?['citymunDesc'],
+      ),
+    );
   }
 
   Future<bool> _showTermsAndConditions() async {
@@ -130,6 +169,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final bool isNCR = _selectedRegion?['regDesc']?.toString().toUpperCase().contains('NCR') ?? false;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -331,6 +371,52 @@ class _SignupScreenState extends State<SignupScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            Text(
+                              'Confirm Password', 
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontFamily: 'Inter', 
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 12, 
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: _confirmPasswordController,
+                              obscureText: _obscureConfirmPassword,
+                              decoration: InputDecoration(
+                                prefixIcon: Icon(Icons.lock_outline, color: colorScheme.onSurfaceVariant),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                                    });
+                                  },
+                                ),
+                                hintText: '••••••••',
+                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
+                                filled: true,
+                                fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12.0), 
+                                  borderSide: BorderSide(color: colorScheme.outline),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12.0), 
+                                  borderSide: BorderSide(color: colorScheme.outline),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12.0), 
+                                  borderSide: BorderSide(color: colorScheme.primary, width: 2.0),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
                             // Region Dropdown
                             DropdownButtonHideUnderline(
                                 child: DropdownButtonFormField<Map<String, dynamic>>(
@@ -360,6 +446,9 @@ class _SignupScreenState extends State<SignupScreen> {
                                       _selectedCity = null;
                                       // Filter provinces for selected region
                                       _filteredProvinces = _allProvinces.where((p) => p['regCode'] == value?['regCode']).toList();
+                                      if (value?['regDesc']?.toString().toUpperCase().contains('NCR') == true) {
+                                        _filteredProvinces = _filteredProvinces.where((p) => p['provDesc'] == 'CITY OF MANILA').toList();
+                                      }
                                       _filteredCities = [];
                                     });
                                   },
@@ -372,7 +461,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                   isExpanded: true,
                                   decoration: InputDecoration(
                                     prefixIcon: Icon(Icons.location_city, color: colorScheme.onSurfaceVariant),
-                                    hintText: 'Select Province',
+                                    hintText: isNCR ? 'Select City' : 'Select Province',
                                     filled: true,
                                     fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -404,7 +493,7 @@ class _SignupScreenState extends State<SignupScreen> {
             isExpanded: true,
             decoration: InputDecoration(
               prefixIcon: Icon(Icons.location_city, color: colorScheme.onSurfaceVariant),
-              hintText: 'Select City/Municipality',
+              hintText: isNCR ? 'Select District' : 'Select City/Municipality',
               filled: true,
               fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),

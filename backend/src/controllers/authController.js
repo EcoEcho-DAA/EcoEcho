@@ -53,6 +53,14 @@ async function signup(req, res) {
       return res.status(400).json({ error: 'username, email, and password are required' });
     }
 
+    if (!email.includes('@')) {
+      return res.status(400).json({ error: 'Please enter a valid email address containing "@".' });
+    }
+
+    if (password.length <= 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'Password must be longer than 8 characters and contain both numbers and letters.' });
+    }
+
     // Force default environmental score/total_xp to start at exactly 0
     const percentileRank = 0;
     const currentTierId = 1; // baseline Tier 1

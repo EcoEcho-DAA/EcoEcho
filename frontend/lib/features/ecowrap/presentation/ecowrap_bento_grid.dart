@@ -116,7 +116,7 @@ class _BentoCard extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
-                    color: Color(0xFF767777),
+                    color: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -125,6 +125,7 @@ class _BentoCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
+                    color: Colors.black87,
                   ),
                 ),
               ],
@@ -149,7 +150,7 @@ class _BentoCard extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1,
-                        color: Color(0xFF767777),
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -158,6 +159,7 @@ class _BentoCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
+                        color: Colors.black87,
                       ),
                     ),
                   ],

@@ -132,18 +132,18 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
     Navigator.of(context).pop();
   }
 
-  String _getTierBadge(String tierName) {
-    switch (tierName.toLowerCase()) {
-      case 'sprout':
-        return 'assets/icons/tier_badge_sprout.png';
-      case 'sapling':
-        return 'assets/icons/tier_badge_sapling.png';
-      case 'ancient tree':
-        return 'assets/icons/tier_badge_ancient_tree.png';
-      case 'seed':
-      default:
-        return 'assets/icons/tier_badge_seed.png';
+  IconData _tierIcon(String tierName) {
+    final name = tierName.toLowerCase();
+    if (name.contains('seedling') || name == 'seed') {
+      return Icons.eco; // Seed badge
+    } else if (name.contains('sprout')) {
+      return Icons.spa; // Sprout badge
+    } else if (name.contains('sapling')) {
+      return Icons.nature; // Sapling badge
+    } else if (name.contains('thriving tree') || name.contains('ancient')) {
+      return Icons.park; // Ancient tree badge
     }
+    return Icons.eco; // Default seed
   }
  
   @override
@@ -309,7 +309,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
           Text(
             'YOUR 2026 MILESTONE',
             style: TextStyle(
-              color: primaryGreen,
+              color: const Color(0xFF1B5E20),
               fontSize: 13,
               fontWeight: FontWeight.bold,
               letterSpacing: 2,
@@ -338,11 +338,15 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
           const SizedBox(height: 32),
           Text(
             'Top ${_wrappedData?['ranking'] ?? '0'}%',
-            style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w900),
+            style: const TextStyle(
+              fontSize: 44,
+              fontWeight: FontWeight.w900,
+              color: Colors.black87,
+            ),
           ),
-          Text(
+          const Text(
             'of Composters this year!',
-            style: TextStyle(color: neutralGray, fontSize: 15),
+            style: TextStyle(color: Colors.black87, fontSize: 15),
           ),
           const Spacer(),
         ],
@@ -371,17 +375,17 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
       child: Column(
         children: [
           const SizedBox(height: 100),
-          Image.asset(_getTierBadge(_wrappedData?['tier_name'] ?? 'seed'),
-            width: 80,
-            height: 80,
+          Icon(_tierIcon(_wrappedData?['tier_name'] ?? 'seed'),
+            size: 80,
+            color: primaryGreen,
           ),
           const SizedBox(height: 24),
           Text(
             'You achieved the ${_wrappedData?['tier_name'] ?? 'Seed'} Tier!',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: primaryGreen,
+              color: Color(0xFF1B5E20),
             ),
             textAlign: TextAlign.center,
           ),
@@ -438,7 +442,7 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF386A2B),
+              color: Color(0xFF1B5E20),
             ),
           ),
           const SizedBox(height: 4),
@@ -524,7 +528,11 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
             const SizedBox(height: 100),
             Text(
               title,
-              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1B5E20),
+              ),
             ),
             const SizedBox(height: 40),
             Container(
@@ -535,13 +543,14 @@ class _EcoWrapStoryScreenState extends State<EcoWrapStoryScreen>
               ),
               child: Column(
                 children: [
-                  Icon(icon, color: color, size: 64),
+                  Icon(icon, size: 64),
                   const SizedBox(height: 20),
                   Text(
                     stat,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
                 ],

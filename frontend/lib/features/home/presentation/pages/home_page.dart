@@ -740,12 +740,23 @@ class _HomePageState extends State<HomePage> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search Buddy UID...',
-                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white54
+                        : Colors.black45,
+                    fontSize: 14,
+                  ),
                   border: InputBorder.none,
                 ),
-                style: const TextStyle(color: Color(0xFF154212), fontSize: 16),
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : const Color(0xFF1B5E20),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
                 textInputAction: TextInputAction.search,
                 onSubmitted: (val) {
                   _searchBuddy(val.trim());
@@ -1457,9 +1468,9 @@ class _PostCardState extends State<PostCard> {
                           _formatRelativeTime(widget.postData['created_at']),
                           style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontSize: 12),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
               Column(

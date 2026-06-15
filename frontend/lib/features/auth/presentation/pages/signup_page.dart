@@ -18,7 +18,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _ecoScoreController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
@@ -26,24 +25,31 @@ class _SignupScreenState extends State<SignupScreen> {
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _ecoScoreController.dispose();
     super.dispose();
   }
 
-  void _submitSignup() {
+  void _submitSignup() async {
     final username = _usernameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final ecoScoreStr = _ecoScoreController.text.trim();
-    final ecoScore = double.tryParse(ecoScoreStr) ?? 0.0;
 
     if (username.isNotEmpty && email.isNotEmpty && password.isNotEmpty) {
+      final accepted = await _showTermsAndConditions();
+      if (!accepted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('You must accept the terms and conditions to create an account.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
       context.read<AuthBloc>().add(
         SignupRequested(
           username: username,
           email: email,
           password: password,
-          ecoScore: ecoScore,
+          ecoScore: 0.0,
         ),
       );
     } else {
@@ -55,6 +61,32 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
       );
     }
+  }
+
+  Future<bool> _showTermsAndConditions() async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('Terms & Conditions'),
+            content: const SingleChildScrollView(
+              child: Text(
+                "Welcome to EcoEcho! By accessing or using our application, you agree to comply with and be bound by the following Terms and Conditions and community policies.\n\n1. Core Community Guidelines\nEcoEcho is a place for positive environmental action. Users are expected to log honest, authentic actions and engage with other buddies in a constructive and respectful manner. Spamming, posting fake action images, or abusing other members will result be immediate suspension.\n\n2. Account Security\nYou are responsible for maintaining the confidentiality of your login credentials. If you detect any unauthorized usage of your account, you should contact our support team immediately.\n\n3. Intellectual Property and Photo Submission\nBy uploading photos as proof of green activities, you grant EcoEcho a non-exclusive license to host and display the content. You represent that you own the rights to the uploaded media and that it does not infringe on anyone's rights.\n\n4. Modifications to Service\nEcoEcho reserves the right to modify, suspend, or discontinue any part of the service, including gamified scoring metrics or user tiers, at any time without prior warning.",
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Agree'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   @override
@@ -262,42 +294,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Environmental Score', 
-                              style: textTheme.bodyMedium?.copyWith(
-                                fontFamily: 'Inter', 
-                                fontWeight: FontWeight.bold, 
-                                fontSize: 12, 
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            TextField(
-                              controller: _ecoScoreController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: InputDecoration(
-                                prefixIcon: Icon(Icons.compost, color: colorScheme.onSurfaceVariant),
-                                hintText: '0.0',
-                                hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
-                                filled: true,
-                                fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12.0), 
-                                  borderSide: BorderSide(color: colorScheme.outline),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12.0), 
-                                  borderSide: BorderSide(color: colorScheme.outline),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12.0), 
-                                  borderSide: BorderSide(color: colorScheme.primary, width: 2.0),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
+
                             
                             if (state is AuthLoading)
                               Center(child: CircularProgressIndicator(color: colorScheme.primary))

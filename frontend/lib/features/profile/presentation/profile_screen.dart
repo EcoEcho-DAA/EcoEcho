@@ -571,19 +571,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                 Image.asset(
-                                  _getTierImagePath(tier),
-                                  width: 24,
-                                  height: 24,
-                                  fit: BoxFit.contain,
-                                  // Optional: If you want the images to slightly pop or tint elegantly in dark mode
-                                  color: Theme.of(context).brightness == Brightness.dark 
-                                      ? Colors.white.withOpacity(0.9) 
-                                      : null,
-                                  colorBlendMode: Theme.of(context).brightness == Brightness.dark 
-                                      ? BlendMode.modulate 
-                                      : BlendMode.srcIn,
-                                ),
+                              Icon(
+                                Icons.emoji_events,
+                                size: 24,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withOpacity(0.9)
+                                    : const Color(0xFF154212),
+                              ),
                                 const SizedBox(width: 4),
                                 Text(
                                   tier.toUpperCase(),
@@ -1262,6 +1256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final friend = _friendsList[index];
               final String name = friend['username'] ?? 'Eco Warrior';
               final String friendUid = friend['uid']?.toString() ?? '';
+              final String initial = name.isNotEmpty ? name[0].toUpperCase() : 'E';
 
               return Padding(
                 padding: const EdgeInsets.only(right: 16.0),

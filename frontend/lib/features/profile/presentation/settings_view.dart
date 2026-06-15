@@ -145,7 +145,7 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Have a question or run into issues? Email our support team directly or open a draft.',
+              'Have a question or run into issues? Email our support team directly at contactjkeaviles@gmail.com.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontSize: 14),
             ),
@@ -169,8 +169,8 @@ class _SettingsViewState extends State<SettingsView> {
                     onPressed: () {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(this.context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Support draft opened: support@ecoecho.org'),
+                        SnackBar(
+                          content: const Text('Send email to contactjkeaviles@gmail.com and we\'ll get back to you.'),
                           backgroundColor: Color(0xFF154212),
                           behavior: SnackBarBehavior.floating,
                         ),
@@ -194,6 +194,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   void _showTermsModal() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -214,7 +215,7 @@ class _SettingsViewState extends State<SettingsView> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFECEFEA),
+                  color: isDarkMode ? const Color(0xFF2C302B) : const Color(0xFFECEFEA),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -230,54 +231,95 @@ class _SettingsViewState extends State<SettingsView> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  children: [
-                    Text(
-                      'Welcome to EcoEcho! By accessing or using our application, you agree to comply with and be bound by the following Terms and Conditions and community policies.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).colorScheme.onSurface),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDarkMode ? Colors.white10 : Colors.black12,
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      '1. Core Community Guidelines',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'EcoEcho is a place for positive environmental action. Users are expected to log honest, authentic actions and engage with other buddies in a constructive and respectful manner. Spamming, posting fake action images, or abusing other members will result in immediate suspension.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      '2. Account Security',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'You are responsible for maintaining the confidentiality of your login credentials. If you detect any unauthorized usage of your account, you should contact our support team immediately.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      '3. Intellectual Property and Photo Submission',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'By uploading photos as proof of green activities, you grant EcoEcho a non-exclusive license to host and display the content. You represent that you own the rights to the uploaded media and that it does not infringe on anyone else\'s rights.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      '4. Modifications to Service',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'EcoEcho reserves the right to modify, suspend, or discontinue any part of the service, including gamified scoring metrics or user tiers, at any time without prior warning.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
-                    ),
-                  ],
+                  ),
+                  child: ListView(
+                    controller: scrollController,
+                    children: [
+                      Text(
+                        'Welcome to EcoEcho! By accessing or using our application, you agree to comply with and be bound by the following Terms and Conditions and community policies.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDarkMode ? Colors.white70 : Colors.black87,
+                              height: 1.5,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '1. Core Community Guidelines',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.greenAccent : const Color(0xFF154212),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'EcoEcho is a place for positive environmental action. Users are expected to log honest, authentic actions and engage with other buddies in a constructive and respectful manner. Spamming, posting fake action images, or abusing other members will result in immediate suspension.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDarkMode ? Colors.white70 : Colors.black87,
+                              height: 1.5,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '2. Account Security',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.greenAccent : const Color(0xFF154212),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'You are responsible for maintaining the confidentiality of your login credentials. If you detect any unauthorized usage of your account, you should contact our support team immediately.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDarkMode ? Colors.white70 : Colors.black87,
+                              height: 1.5,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '3. Intellectual Property and Photo Submission',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.greenAccent : const Color(0xFF154212),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'By uploading photos as proof of green activities, you grant EcoEcho a non-exclusive license to host and display the content. You represent that you own the rights to the uploaded media and that it does not infringe on anyone else\'s rights.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDarkMode ? Colors.white70 : Colors.black87,
+                              height: 1.5,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '4. Modifications to Service',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.greenAccent : const Color(0xFF154212),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'EcoEcho reserves the right to modify, suspend, or discontinue any part of the service, including gamified scoring metrics or user tiers, at any time without prior warning.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDarkMode ? Colors.white70 : Colors.black87,
+                              height: 1.5,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -469,11 +511,16 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+            Material(
+              color: Theme.of(context).cardColor,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.5)),
+                side: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white12 
+                      : const Color(0xFFC2C9BB).withOpacity(0.5),
+                ),
               ),
               child: BlocBuilder<ThemeCubit, ThemeMode>(
                 builder: (context, themeMode) {
@@ -511,11 +558,16 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
+            Material(
+              color: Theme.of(context).cardColor,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.5)),
+                side: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white12 
+                      : const Color(0xFFC2C9BB).withOpacity(0.5),
+                ),
               ),
               child: Column(
                 children: [

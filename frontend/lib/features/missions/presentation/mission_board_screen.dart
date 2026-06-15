@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
+import 'package:confetti/confetti.dart';
 import '../../home/presentation/pages/preview_screen.dart';
 import '../../home/presentation/pages/camera_screen.dart';
 import 'package:camera/camera.dart';
@@ -31,10 +32,12 @@ class MissionBoardView extends StatefulWidget {
 class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerProviderStateMixin {
   bool _showCompletedDailyMissions = false;
   late TabController _tabController;
+  late ConfettiController _confettiController;
 
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       setState(() {});
@@ -43,6 +46,7 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
 
   @override
   void dispose() {
+    _confettiController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -304,10 +308,12 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             // Screen Header Section (Pinned at the top)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
@@ -329,7 +335,7 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Daily Missions',
+                        'Missions',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -353,23 +359,6 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
                       color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E),
                       fontFamily: 'Inter',
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
-                    unselectedLabelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : const Color(0xFF72796E),
-                    indicatorColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
-                    indicatorWeight: 3.0,
-                    labelStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      fontFamily: 'Be Vietnam Pro',
-                    ),
-                    tabs: const [
-                      Tab(text: 'Ongoing'),
-                      Tab(text: 'Completed'),
-                    ],
                   ),
                 ],
               ),
@@ -452,6 +441,40 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
                             _buildAnalyticsHeader(analytics),
                             
                             const SizedBox(height: 16),
+
+                            TabBar(
+                              controller: _tabController,
+                              labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
+                              unselectedLabelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white38 : const Color(0xFF72796E),
+                              indicatorColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
+                              indicatorWeight: 3.0,
+                              labelStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                fontFamily: 'Be Vietnam Pro',
+                              ),
+                              tabs: const [
+                                Tab(text: 'Ongoing'),
+                                Tab(text: 'Completed'),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                              child: Text(
+                                'Daily Missions', 
+                                style: TextStyle(
+                                  fontSize: 20, 
+                                  fontWeight: FontWeight.bold, 
+                                  color: Theme.of(context).brightness == Brightness.dark 
+                                      ? Colors.white 
+                                      : const Color(0xFF154212), 
+                                  fontFamily: 'Be Vietnam Pro',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             
                             if (activeList.isEmpty)
                               Padding(
@@ -506,8 +529,50 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 8),
 
-                            _buildFixedMissionsBoard(fixedMissions, prerequisites),
+                            if (_tabController.index == 0)
+                              _buildFixedMissionsBoard(fixedMissions, prerequisites)
+                            else
+                              Builder(
+                                builder: (context) {
+                                  final completedUserMissions = fixedMissions.where((m) => m['completed_at'] != null).toList();
+                                  if (completedUserMissions.isEmpty) {
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle_outline,
+                                              size: 60,
+                                              color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFF72796E),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              'No completed user missions yet!',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E),
+                                                fontFamily: 'Be Vietnam Pro',
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                                    child: Column(
+                                      children: completedUserMissions.map((m) => _buildMissionCard(context, m)).toList(),
+                                    ),
+                                  );
+                                },
+                              ),
                             
                             const SizedBox(height: 40),
                           ],
@@ -523,8 +588,29 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
           ],
         ),
       ),
-    );
-  }
+      Align(
+        alignment: Alignment.topCenter,
+        child: ConfettiWidget(
+          confettiController: _confettiController,
+          blastDirectionality: BlastDirectionality.explosive,
+          shouldLoop: false,
+          colors: const [
+            Colors.green,
+            Colors.blue,
+            Colors.pink,
+            Colors.orange,
+            Colors.purple
+          ],
+          numberOfParticles: 40,
+          maxBlastForce: 60,
+          minBlastForce: 20,
+          gravity: 0.3,
+        ),
+      ),
+    ],
+  ),
+);
+}
 
   Widget _buildMissionCard(BuildContext context, Map<String, dynamic> mission) {
     final title = mission['title'] ?? 'Eco Action';
@@ -552,6 +638,7 @@ class _MissionBoardViewState extends State<MissionBoardView> with SingleTickerPr
         missionId: missionId,
         categoryId: categoryId,
         onSuccess: () {
+          _confettiController.play();
           context.read<MissionsBloc>().add(FetchAllMissions());
         },
       );

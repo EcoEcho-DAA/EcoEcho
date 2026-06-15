@@ -169,73 +169,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isDark ? Colors.grey.withOpacity(0.2) : const Color(0xFFC2C9BB)),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final buttonWidth = (constraints.maxWidth - 6) / 4;
-                  return ToggleButtons(
-                    constraints: BoxConstraints.expand(width: buttonWidth, height: 36),
-                    isSelected: [
-                      _selectedTimeframe == 'daily',
-                      _selectedTimeframe == 'monthly',
-                      _selectedTimeframe == 'yearly',
-                      _selectedTimeframe == 'all-time',
-                    ],
-                    onPressed: (index) {
-                      final timeframes = ['daily', 'monthly', 'yearly', 'all-time'];
-                      if (_selectedTimeframe != timeframes[index]) {
-                        setState(() {
-                          _selectedTimeframe = timeframes[index];
-                          _leaderboardFuture = _fetchLeaderboardData();
-                        });
-                      }
-                    },
-                    color: isDark ? const Color(0xFFC2C9BB) : const Color(0xFF72796E),
-                    selectedColor: brandColor,
-                    fillColor: isDark ? const Color(0xFF1D221C) : const Color(0xFFC2C9BB).withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(7),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Be Vietnam Pro',
-                      fontSize: 12,
-                    ),
-                    children: const [
-                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Daily'))),
-                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Monthly'))),
-                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('Yearly'))),
-                      FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Text('All-Time'))),
-                    ],
-                  );
-                }
-              ),
-            ),
-          ),
-          // Geographic Filter Chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildGeoChip('All', 'all'),
-                  const SizedBox(width: 8),
-                  _buildGeoChip('City (${_userCity ?? 'Local'})', 'city'),
-                  const SizedBox(width: 8),
-                  _buildGeoChip('Province (${_userProvince ?? 'Local'})', 'province'),
-                  const SizedBox(width: 8),
-                  _buildGeoChip('Region (${_userRegion ?? 'Local'})', 'region'),
-                ],
-              ),
-            ),
-          ),
+          // Timeframe and Geographic Filter Chips were moved to the sort filter sheet in the AppBar
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: _leaderboardFuture,

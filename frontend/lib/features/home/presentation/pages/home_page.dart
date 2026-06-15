@@ -25,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   String? _currentUserUid;
   String? _currentUsername;
+  String? _currentUserProfilePic;
 
   int _notificationCount = 0;
   List<dynamic> _pendingRequests = [];
@@ -48,6 +49,7 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           _currentUserUid = data['uid'];
           _currentUsername = data['username'];
+          _currentUserProfilePic = data['profile_pic_url'];
         });
       }
     } catch (e) {
@@ -68,16 +70,40 @@ class _HomePageState extends State<HomePage> {
       timeOfDay = 'night';
     }
     final name = _currentUsername ?? 'Eco Warrior';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
-      child: Text(
-        'Good $timeOfDay, $name !',
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212),
-          fontFamily: 'Outfit',
-        ),
+      padding: const EdgeInsets.only(bottom: 12.0, left: 4.0, right: 16.0),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: isDark ? Colors.grey[700] : Colors.grey[300],
+            backgroundImage: _currentUserProfilePic != null
+                ? NetworkImage(_currentUserProfilePic!)
+                : null,
+            child: _currentUserProfilePic == null
+                ? Text(
+                    name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'E',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF154212),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Good $timeOfDay, $name !',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : const Color(0xFF154212),
+                fontFamily: 'Outfit',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -829,8 +855,6 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(16.0),
         children: [
           _buildGreetingHeader(),
-          _buildLogActivitySection(),
-          const SizedBox(height: 24),
           _buildFeedToggle(),
           const SizedBox(height: 8),
           // Sort dropdown
@@ -987,62 +1011,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildLogActivitySection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF79574C).withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        children: [
-          const CircleAvatar(
-            radius: 28,
-            backgroundColor: Color(0xFF2D5A27),
-            child: Icon(Icons.add_a_photo, color: Color(0xFF9DD090), size: 28),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Log Green Activity',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Upload a photo to earn XP and inspire the community.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontSize: 14),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => _selectImageSource(context, onSuccess: () {
-              setState(() {
-                _feedFuture = _fetchFeed();
-                _friendsFeedFuture = _fetchFriendsFeed();
-              });
-            }),
-            icon: const Icon(Icons.upload, size: 18),
-            label: const Text('Upload Proof', style: TextStyle(fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              elevation: 0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildFeedToggle() {
     return Container(
       decoration: BoxDecoration(
@@ -1136,6 +1104,82 @@ class _PostCardState extends State<PostCard> {
   late bool isLiked;
   late bool isDownvoted;
   bool isVoting = false;
+
+  Future<void> _editPost() async {
+    final TextEditingController captionController = TextEditingController(text: widget.postData['caption']);
+    bool isSaving = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Text('Edit Caption', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF154212))),
+          content: TextField(
+            controller: captionController,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: 'Update your caption...',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF154212), width: 2),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF154212),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setState(() => isSaving = true);
+                      try {
+                        final postId = widget.postData['id'];
+                        final response = await ApiService.put('/api/posts/$postId', {'caption': captionController.text});
+                        if (response.statusCode == 200) {
+                          Navigator.pop(dialogContext);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Caption updated!'), backgroundColor: Color(0xFF154212)),
+                            );
+                          }
+                          if (widget.onDelete != null) widget.onDelete!();
+                        } else {
+                          final err = jsonDecode(response.body);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(err['error'] ?? 'Failed to update caption'), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      } finally {
+                        if (mounted) setState(() => isSaving = false);
+                      }
+                    },
+              child: isSaving
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _deletePost() async {
     final bool? confirm1 = await showDialog<bool>(
@@ -1664,11 +1708,27 @@ class _PostCardState extends State<PostCard> {
               ),
               const Spacer(),
               if (widget.currentUserUid != null && widget.postData['author_uid'] == widget.currentUserUid)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Color(0xFFBA1A1A), size: 20),
-                  onPressed: _deletePost,
-                  constraints: const BoxConstraints(),
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_horiz, size: 20, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                   padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _editPost();
+                    } else if (value == 'delete') {
+                      _deletePost();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit Caption'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete Post', style: TextStyle(color: Color(0xFFBA1A1A))),
+                    ),
+                  ],
                 )
               else
                 IconButton(

@@ -236,6 +236,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     label: Text(tag),
                     selected: isSelected,
                     selectedColor: const Color(0xFF154212),
+                    checkmarkColor: Colors.white,
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : const Color(0xFF42493E),
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

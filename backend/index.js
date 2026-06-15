@@ -1090,6 +1090,38 @@ app.post('/api/posts', protect, upload.single('image'), async (req, res) => {
   }
 });
 
+// PUT /api/posts/:id -> Edit post caption
+app.put('/api/posts/:id', protect, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { caption } = req.body;
+    
+    if (caption === undefined) {
+      return res.status(400).json({ error: 'Caption is required.' });
+    }
+
+    const postRes = await pool.query('SELECT user_uid FROM posts WHERE id = $1', [postId]);
+    if (postRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found.' });
+    }
+
+    // Authorization check
+    if (postRes.rows[0].user_uid !== req.userId) {
+      return res.status(403).json({ error: 'Unauthorized: You are not the author of this post.' });
+    }
+
+    await pool.query(
+      'UPDATE posts SET caption = $1 WHERE id = $2',
+      [caption, postId]
+    );
+
+    return res.status(200).json({ success: true, message: 'Post updated successfully.' });
+  } catch (err) {
+    console.error('PUT /api/posts/:id error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/posts/:id -> Authenticated post deletion with XP deduction reversal
 app.delete('/api/posts/:id', protect, async (req, res) => {
   try {

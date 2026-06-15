@@ -1597,6 +1597,20 @@ async function start() {
     console.log('[INIT WARNING] notifications check skipped:', err.message);
   }
 
+  // Ensure mission_prerequisites table exists
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS mission_prerequisites (
+        mission_id INTEGER REFERENCES missions(id) ON DELETE CASCADE,
+        prerequisite_mission_id INTEGER REFERENCES missions(id) ON DELETE CASCADE,
+        PRIMARY KEY (mission_id, prerequisite_mission_id)
+      )
+    `);
+    console.log('[INIT] Verified or created mission_prerequisites table.');
+  } catch (err) {
+    console.log('[INIT WARNING] mission_prerequisites check skipped:', err.message);
+  }
+
   // Ensure post_reports table exists
   try {
     await pool.query(`

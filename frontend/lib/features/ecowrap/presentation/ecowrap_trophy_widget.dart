@@ -88,15 +88,10 @@ class _EcoWrapTrophyWidgetState extends State<EcoWrapTrophyWidget>
                   ),
                 ),
                 // TODO: trophy image to be replace with custom trophy asset once available
-                Image.asset(
-                  widget.assetPath,
-                  width: 100,
-                  height: 100,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.emoji_events,
-                    color: Colors.amber,
-                    size: 80,
-                  ),
+                const Icon(
+                  Icons.emoji_events,
+                  color: Colors.amber,
+                  size: 80,
                 ),
               ],
             ),

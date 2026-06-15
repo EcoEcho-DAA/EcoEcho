@@ -548,6 +548,34 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     );
   }
 
+  Widget _buildGeoChip(String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = _selectedGeoFilter == value;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected 
+              ? (isDark ? Colors.black : Colors.white) 
+              : (isDark ? const Color(0xFFC2C9BB) : const Color(0xFF42493E)),
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: isDark ? Colors.white : const Color(0xFF154212),
+      backgroundColor: isDark ? const Color(0xFF1D221C) : const Color(0xFFECEFEA),
+      onSelected: (selected) {
+        if (selected) {
+          setState(() {
+            _selectedGeoFilter = value;
+            _leaderboardFuture = _fetchLeaderboardData();
+          });
+        }
+      },
+    );
+  }
+
 void _showFilterSheet() {
     String tempTimeframe = _selectedTimeframe;
     String tempGeoFilter = _selectedGeoFilter;
@@ -720,9 +748,6 @@ void _showFilterSheet() {
             );
           },
         );
-      },
-    );
-  }
       },
     );
   }

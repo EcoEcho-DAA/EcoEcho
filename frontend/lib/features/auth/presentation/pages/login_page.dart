@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/features/dashboard/presentation/pages/dashboard_page.dart';
 import '../bloc/auth_bloc.dart';
@@ -17,6 +17,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -82,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Image.asset(
-                    'assets/images/logo.png',
+                    'assets/images/eelogo.png',
                     width: 120,
                     height: 120,
                     errorBuilder: (context, error, stackTrace) => Icon(
@@ -116,12 +117,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).cardColor : Colors.white,
                       borderRadius: BorderRadius.circular(12.0),
-                      border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
+                      border: Border.all(color: colorScheme.outline.withOpacity(0.5)),
                       boxShadow: [
                         BoxShadow(
-                          color: colorScheme.shadow.withValues(alpha: 0.04),
+                          color: colorScheme.shadow.withOpacity(0.04),
                           blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
@@ -146,9 +147,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: InputDecoration(
                             prefixIcon: Icon(Icons.mail_outline, color: colorScheme.onSurfaceVariant),
                             hintText: 'your@email.com',
-                            hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                            hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
                             contentPadding: const EdgeInsets.symmetric(vertical: 16),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12.0), 
@@ -196,13 +197,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 4),
                         TextField(
                           controller: _passwordController,
-                          obscureText: true,
+                          obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             prefixIcon: Icon(Icons.lock_outline, color: colorScheme.onSurfaceVariant),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
                             hintText: '••••••••',
-                            hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                            hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withOpacity(0.5)),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : Colors.white,
                             contentPadding: const EdgeInsets.symmetric(vertical: 16),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12.0), 
@@ -249,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 24),
                         Row(
                           children: [
-                            Expanded(child: Divider(color: colorScheme.outline.withValues(alpha: 0.5))),
+                            Expanded(child: Divider(color: colorScheme.outline.withOpacity(0.5))),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
                               child: Text(
@@ -260,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             ),
-                            Expanded(child: Divider(color: colorScheme.outline.withValues(alpha: 0.5))),
+                            Expanded(child: Divider(color: colorScheme.outline.withOpacity(0.5))),
                           ],
                         ),
                         const SizedBox(height: 24),
@@ -282,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              backgroundColor: colorScheme.secondary.withValues(alpha: 0.1),
+                              backgroundColor: colorScheme.secondary.withOpacity(0.1),
                               side: BorderSide(color: colorScheme.outline),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12.0),

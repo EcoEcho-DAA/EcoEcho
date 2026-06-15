@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/network/api_service.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/theme/theme_cubit.dart';
 
 class SettingsView extends StatefulWidget {
   final Map<String, dynamic> userProfile;
@@ -115,7 +117,7 @@ class _SettingsViewState extends State<SettingsView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       builder: (context) => Padding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
         child: Column(
@@ -132,20 +134,20 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 24),
             const Icon(Icons.support_agent, size: 64, color: Color(0xFF154212)),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Customer Support',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF191C1A),
+                color: Theme.of(context).colorScheme.onSurface,
                 fontFamily: 'Be Vietnam Pro',
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Have a question or run into issues? Email our support team directly or open a draft.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF42493E), fontSize: 14),
+              style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E), fontSize: 14),
             ),
             const SizedBox(height: 24),
             Row(
@@ -154,11 +156,11 @@ class _SettingsViewState extends State<SettingsView> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFC2C9BB)),
+                      side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.white24 : const Color(0xFFC2C9BB)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('Cancel', style: TextStyle(color: Color(0xFF42493E))),
+                    child: Text('Cancel', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E))),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -198,7 +200,7 @@ class _SettingsViewState extends State<SettingsView> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         minChildSize: 0.5,
@@ -217,12 +219,12 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Terms and Conditions',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF191C1A),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontFamily: 'Be Vietnam Pro',
                 ),
               ),
@@ -230,50 +232,50 @@ class _SettingsViewState extends State<SettingsView> {
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  children: const [
+                  children: [
                     Text(
                       'Welcome to EcoEcho! By accessing or using our application, you agree to comply with and be bound by the following Terms and Conditions and community policies.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF191C1A)),
+                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).colorScheme.onSurface),
                     ),
-                    SizedBox(height: 16),
-                    Text(
+                    const SizedBox(height: 16),
+                    const Text(
                       '1. Core Community Guidelines',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'EcoEcho is a place for positive environmental action. Users are expected to log honest, authentic actions and engage with other buddies in a constructive and respectful manner. Spamming, posting fake action images, or abusing other members will result in immediate suspension.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF42493E)),
+                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                     ),
-                    SizedBox(height: 16),
-                    Text(
+                    const SizedBox(height: 16),
+                    const Text(
                       '2. Account Security',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'You are responsible for maintaining the confidentiality of your login credentials. If you detect any unauthorized usage of your account, you should contact our support team immediately.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF42493E)),
+                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                     ),
-                    SizedBox(height: 16),
-                    Text(
+                    const SizedBox(height: 16),
+                    const Text(
                       '3. Intellectual Property and Photo Submission',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'By uploading photos as proof of green activities, you grant EcoEcho a non-exclusive license to host and display the content. You represent that you own the rights to the uploaded media and that it does not infringe on anyone else\'s rights.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF42493E)),
+                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                     ),
-                    SizedBox(height: 16),
-                    Text(
+                    const SizedBox(height: 16),
+                    const Text(
                       '4. Modifications to Service',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF154212)),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       'EcoEcho reserves the right to modify, suspend, or discontinue any part of the service, including gamified scoring metrics or user tiers, at any time without prior warning.',
-                      style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF42493E)),
+                      style: TextStyle(fontSize: 14, height: 1.5, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF42493E)),
                     ),
                   ],
                 ),
@@ -305,15 +307,15 @@ class _SettingsViewState extends State<SettingsView> {
     final uid = widget.userProfile['uid'] ?? 'Not set';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF5),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAF5),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF154212)),
-        title: const Text(
+        iconTheme: IconThemeData(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212)),
+        title: Text(
           'Settings',
           style: TextStyle(
-            color: Color(0xFF154212),
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF154212),
             fontWeight: FontWeight.bold,
             fontFamily: 'Be Vietnam Pro',
           ),
@@ -326,12 +328,12 @@ class _SettingsViewState extends State<SettingsView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Title for Information Section
-            const Text(
+            Text(
               'Account Information',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF154212),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF154212),
                 fontFamily: 'Be Vietnam Pro',
               ),
             ),
@@ -341,9 +343,9 @@ class _SettingsViewState extends State<SettingsView> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.5)),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.5)),
               ),
               child: Column(
                 children: [
@@ -352,13 +354,13 @@ class _SettingsViewState extends State<SettingsView> {
                     value: email,
                     onCopy: () => _copyToClipboard('Email address', email),
                   ),
-                  const Divider(height: 24, thickness: 1, color: Color(0xFFECEFEA)),
+                  Divider(height: 24, thickness: 1, color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFECEFEA)),
                   _buildReadOnlyRow(
                     label: 'User UID',
                     value: uid,
                     onCopy: () => _copyToClipboard('UID', uid),
                   ),
-                  const Divider(height: 24, thickness: 1, color: Color(0xFFECEFEA)),
+                  Divider(height: 24, thickness: 1, color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFECEFEA)),
                   _buildReadOnlyRow(
                     label: 'Password',
                     value: '••••••••',
@@ -370,12 +372,12 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 28),
 
             // Report Account Section
-            const Text(
+            Text(
               'Safety & Moderation',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF154212),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF154212),
                 fontFamily: 'Be Vietnam Pro',
               ),
             ),
@@ -383,30 +385,30 @@ class _SettingsViewState extends State<SettingsView> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.5)),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.5)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Report Buddy Account',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF191C1A)),
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Flag accounts logging fake actions, spamming, or violating community guidelines.',
-                    style: TextStyle(color: Color(0xFF72796E), fontSize: 12),
+                    style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E), fontSize: 12),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _targetController,
                     decoration: InputDecoration(
                       labelText: 'Target Username or UID',
-                      labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF72796E)),
+                      labelStyle: TextStyle(fontSize: 13, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E)),
                       filled: true,
-                      fillColor: const Color(0xFFF8FAF5),
+                      fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFF8FAF5),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -420,9 +422,9 @@ class _SettingsViewState extends State<SettingsView> {
                     maxLines: 2,
                     decoration: InputDecoration(
                       labelText: 'Reason for reporting',
-                      labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF72796E)),
+                      labelStyle: TextStyle(fontSize: 13, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF72796E)),
                       filled: true,
-                      fillColor: const Color(0xFFF8FAF5),
+                      fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2B2F2A) : const Color(0xFFF8FAF5),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -456,36 +458,78 @@ class _SettingsViewState extends State<SettingsView> {
             ),
             const SizedBox(height: 28),
 
-            // Additional Actions List
-            const Text(
-              'Support & Guidelines',
+            // Appearance Section
+            Text(
+              'Appearance',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF154212),
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF154212),
                 fontFamily: 'Be Vietnam Pro',
               ),
             ),
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFC2C9BB).withOpacity(0.5)),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.5)),
+              ),
+              child: BlocBuilder<ThemeCubit, ThemeMode>(
+                builder: (context, themeMode) {
+                  final isDark = themeMode == ThemeMode.dark;
+                  return ListTile(
+                    leading: Icon(
+                      isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                      color: isDark ? Colors.green : const Color(0xFF154212),
+                    ),
+                    title: Text(
+                      'Dark Theme Mode',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
+                    ),
+                    trailing: Switch(
+                      value: isDark,
+                      activeThumbColor: isDark ? Colors.green : const Color(0xFF154212),
+                      onChanged: (val) {
+                        context.read<ThemeCubit>().toggleTheme();
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // Additional Actions List
+            Text(
+              'Support & Guidelines',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.greenAccent : const Color(0xFF154212),
+                fontFamily: 'Be Vietnam Pro',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFC2C9BB).withOpacity(0.5)),
               ),
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.mail_outline, color: Color(0xFF154212)),
+                    leading: Icon(Icons.mail_outline, color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)),
                     title: const Text('Send Help / Support', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    trailing: const Icon(Icons.chevron_right, color: Color(0xFF72796E)),
+                    trailing: Icon(Icons.chevron_right, color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E)),
                     onTap: _showSupportModal,
                   ),
-                  const Divider(height: 1, thickness: 1, color: Color(0xFFECEFEA)),
+                  Divider(height: 1, thickness: 1, color: Theme.of(context).brightness == Brightness.dark ? Colors.white12 : const Color(0xFFECEFEA)),
                   ListTile(
-                    leading: const Icon(Icons.description_outlined, color: Color(0xFF154212)),
+                    leading: Icon(Icons.description_outlined, color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)),
                     title: const Text('Terms and Conditions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    trailing: const Icon(Icons.chevron_right, color: Color(0xFF72796E)),
+                    trailing: Icon(Icons.chevron_right, color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E)),
                     onTap: _showTermsModal,
                   ),
                 ],
@@ -512,9 +556,9 @@ class _SettingsViewState extends State<SettingsView> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: Color(0xFF72796E),
+                  color: Theme.of(context).brightness == Brightness.dark ? Colors.white60 : const Color(0xFF72796E),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -524,7 +568,7 @@ class _SettingsViewState extends State<SettingsView> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF191C1A),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontFamily: isPassword ? null : 'Inter',
                 ),
                 maxLines: 2,
@@ -534,13 +578,13 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         ),
         if (isPassword)
-          const Padding(
-            padding: EdgeInsets.only(left: 8.0),
-            child: Icon(Icons.lock, size: 20, color: Color(0xFFC2C9BB)),
+          Padding(
+            padding: const EdgeInsets.only(left: 8.0),
+            child: Icon(Icons.lock, size: 20, color: Theme.of(context).brightness == Brightness.dark ? Colors.white30 : const Color(0xFFC2C9BB)),
           )
         else if (onCopy != null)
           IconButton(
-            icon: const Icon(Icons.copy, size: 18, color: Color(0xFF154212)),
+            icon: Icon(Icons.copy, size: 18, color: Theme.of(context).brightness == Brightness.dark ? Colors.green : const Color(0xFF154212)),
             onPressed: onCopy,
             constraints: const BoxConstraints(),
             padding: const EdgeInsets.all(8),

@@ -43,3 +43,12 @@ insert into missions (id, title, description, xp_reward, is_daily, tier_id) valu
 (3, 'plastic purge', 'recycled 5 single-use plastic bottles', 60, true, 1),
 (4, 'plant a Tree', 'plant a tree in your local community', 50, true, 1)
 on conflict (id) do nothing;
+
+-- 4. seed consecutive activity logs for joan_dev (uid 11111111-1111-1111-1111-111111111111) to test the 5-day streak counter
+insert into activity_logs (user_uid, action_description, created_at) values
+('11111111-1111-1111-1111-111111111111', 'Logged in to account.', '2026-06-11 10:00:00+08'),
+('11111111-1111-1111-1111-111111111111', 'Created a post.', '2026-06-12 11:30:00+08'),
+('11111111-1111-1111-1111-111111111111', 'Completed a daily mission.', '2026-06-13 14:15:00+08'),
+('11111111-1111-1111-1111-111111111111', 'Liked a post.', '2026-06-14 18:20:00+08'),
+('11111111-1111-1111-1111-111111111111', 'Completed a mission.', '2026-06-15 07:35:00+08');
+

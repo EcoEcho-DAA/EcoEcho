@@ -1,115 +1,130 @@
 # EcoEcho
 
-Inspired by the Strava App, EcoEcho is a social environmental platform designed to document sustainable practices, track  missions, and foster community engagement through gamified tier progressions and localized leaderboards.
+[![Flutter](https://img.shields.io/badge/Frontend-Flutter%20%2F%20Dart-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2F%20Express-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Redis](https://img.shields.io/badge/Cache-Redis-DC382D?logo=redis&logoColor=white)](https://redis.io)
+[![Docker](https://img.shields.io/badge/Infrastructure-Docker%20Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
+
+"Micro-habits for a macro-impact." 
+
+Inspired by Strava, EcoEcho is a social environmental platform designed to document sustainable practices, track green missions, and foster community engagement through gamified tier progressions and localized leaderboards.
 
 ---
 
-## Tech Stack Overview
-* **Frontend:** Flutter (State Management: BLoC)
-* **Backend:** Node.js / Express
-* **Database:** PostgreSQL
-* **Caching:** Redis
-* **Infrastructure:** Docker Compose
+## Features
+
+- **Dynamic Social Feed:** Share and log eco-friendly activities. Sort feed dynamically by Latest or Popular (using a weighted algorithm: Likes + Comments - Downvotes).
+- **Interactive Leaderboard:** Track and rank user contributions in real-time.
+- **Mission Prerequisites Tree:** Unlock environmental milestones sequentially using dependency resolution.
+- **EcoWrap Analytics:** Annual carbon footprint/impact review with precise percentile calculations.
+- **Find-a-Buddy:** Look up other users to form green action groups.
 
 ---
 
-## Repository Structure
-Since this is a monorepo, please ensure you are working within the correct directory for your tasks:
-* `/frontend` - Contains all Flutter and Dart UI code.
-* `/backend` - Contains the Node.js server, API routes, and PostgreSQL/Redis configurations.
+## Architecture and Tech Stack
+
+```mermaid
+graph TD
+    Client[Flutter Mobile App - BLoC] <-->|HTTP REST / JSON| Server[Node.js / Express API]
+    Server <--> DB[(PostgreSQL Database)]
+    Server <--> Cache[(Redis Cache Layer)]
+    DockerCompose[Docker Compose] --> DB
+    DockerCompose --> Cache
+```
+
+- **Frontend:** Flutter and Dart (State Management: BLoC pattern for predictable state flow)
+- **Backend:** Node.js / Express (Modular router architecture)
+- **Database:** PostgreSQL (Relational schema for users, posts, and mission graphs)
+- **Caching:** Redis (Performance optimizations for leaderboard retrieval)
+- **Infrastructure:** Docker Desktop and Docker Compose (Containerized services)
 
 ---
 
-## Prerequisites
-Before contributing, ensure you have the following installed on your laptop/computer :) :
-1. **[Git](https://git-scm.com/downloads)**
-2. **[Docker Desktop](https://www.docker.com/products/docker-desktop)** (Must be running in the background, open it when u contribute, you will see a green dot next to it)
-3. **[Node.js](https://nodejs.org/)** (v18 or higher recommended)
-4. **[Flutter SDK](https://docs.flutter.dev/get-started/install)** (Stable channel, e.g., v3.44.0+)
-5. **[Android Studio](https://developer.android.com/studio)** (For the Android toolchain and emulator)
+### DAA Algorithm Implementations
+
+EcoEcho leverages fundamental computer science algorithms to power core features:
+
+| Feature | Algorithm | Purpose / Complexity |
+| :--- | :--- | :--- |
+| **Leaderboard Rankings** | Max-Heap Sort | Sorts users dynamically based on total green XP points in $O(N \log N)$ time. |
+| **Mission Hierarchies** | Depth-First Search (DFS) | Validates that the mission prerequisite graph is a Directed Acyclic Graph (DAG) and ensures users unlock missions in correct topological order. |
+| **Popularity Sort** | Counting Sort | Sorts posts on the social feed based on weighted engagement score in $O(N + K)$ linear time. |
+| **EcoWrap Analytics** | Binary Search | Locates user XP thresholds to map users into percentile brackets. |
+| **Find-a-Buddy Lookup** | String Matching | Performs prefix/pattern searches on user UIDs/handles. |
 
 ---
 
-## Local Setup Instructions
-Follow these exact steps to get the full application running on your laptop/computer.
+### Repository Structure
 
-### 1. Clone the Repository
-```bash
-git clone [https://github.com/EcoEcho-DAA/EcoEcho.git](https://github.com/EcoEcho-DAA/EcoEcho.git)
-cd EcoEcho
-```
+```plaintext
+EcoEcho/
+├── backend/
+│   ├── database/           # PostgreSQL Schema (init.sql)
+│   ├── db/                 # DB Seeding configuration (seed.sql)
+│   ├── src/
+│   │   ├── algorithms/     # DAA Algorithms (Heap Sort, DFS, Counting Sort, etc.)
+│   │   ├── config/         # Database and environment configurations
+│   │   ├── controllers/    # API Controllers
+│   │   └── routes/         # Express API endpoints
+│   ├── index.js            # Main backend server runner
+│   └── migrate.js          # DB Migrations setup
+└── frontend/
+    ├── assets/             # Images, fonts, and local configurations
+    ├── lib/
+    │   ├── features/       # Core app modules (Feed, Missions, Profile, Auth)
+    │   └── main.dart       # App entry point
+    └── pubspec.yaml        # Flutter dependencies
 
-### 2. Start the Database & Cache
-Ensure Docker Desktop is open, then spin up PostgreSQL and Redis:
-```bash
-docker-compose up -d
-```
+## Getting Started
 
-### 3. Initialize the Database Schema
-You need to create the tables locally. Run the following command from the root folder depending on your terminal:
+### Prerequisites
+- **Git**
+- **Docker Desktop**
+- **Node.js** (v18+)
+- **Flutter SDK** (Stable)
 
-#### For Windows (PowerShell/Cursor Terminal):
+### Local Setup Instructions
 
-```PowerShell
-Get-Content backend\database\init.sql -Raw | docker exec -i ecoecho-postgres psql -U eco_admin -d ecoecho_db
-```
-
-#### For Mac/Linux (Git Bash):
-```Bash
-docker exec -i ecoecho-postgres psql -U eco_admin -d ecoecho_db < backend/database/init.sql
-```
-
-### 4. Start the Backend Server
-Install the dependencies and start the Express API:
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/EcoEcho-DAA/EcoEcho.git](https://github.com/EcoEcho-DAA/EcoEcho.git)
+   cd EcoEcho
+  ```
+2. Start PostgreSQL and Redis (Docker):
+  ``Bash
+  docker-compose up -d
+  ```
+3. Initialize the Database Schema:
+  Windows (PowerShell):
+  ```PowerShell
+  Get-Content backend\database\init.sql -Raw | docker exec -i ecoecho-postgres psql -U eco_admin -d ecoecho_db
+  ```
+  Mac / Linux (Bash):
+  ```Bash
+  docker exec -i ecoecho-postgres psql -U eco_admin -d ecoecho_db < backend/database/init.sql
+4. Initialize Backend Environment and Seed:
+  - Create a .env file inside backend/ mirroring your environment settings. Then run:
 ```Bash
 cd backend
 npm install
+node run_seed.js
 npm start
-The API will run on http://localhost:3000. You can verify it by checking http://localhost:3000/api/leaderboard.
 ```
+Verify the server is running on http://localhost:3000.
 
-### 5. Start the Flutter Frontend
-Open a new terminal window, fetch the Dart packages, and run the app:
+5. Launch Flutter Frontend:
 ```Bash
-cd frontend
+cd ../frontend
 flutter pub get
 flutter run
 ```
-
----
 ## Contribution Guidelines
 
-Please follow this workflow for all contributions to maintain a clean codebase and ensure seamless integration of our core algorithms :)
+To ensure a clean history and quality validation:
 
-### 1. Branching 
-Never push directly to the `main` branch. Create a new branch for your work using the following naming conventions:
-* `feature/short-description` (e.g., `feature/bloc-state-setup`)
-* `algo/short-description` (e.g., `algo/heap-sort-leaderboard`)
-* `bugfix/short-description` (e.g., `bugfix/redis-cache-latency`)
+- **Branching:** Work must take place in branch names following `feature/description`, `algo/description`, or `bugfix/description`. Direct pushes to `main` are restricted.
+- **Commits:** Write clear semantic messages (e.g., `feat(backend): implement counting sort algorithm`).
+- **Pull Requests:** Open a PR targeting `main`. Describe algorithm changes, including time/space complexities, and secure at least 1 team peer review approval.
 
-### 2. Commit Messages
-Write clear, descriptive commit messages. 
-* **Good:** `feat(backend): implement DFS validation for tier progression`
-* **Bad:** `fixed stuff`
-
-### 3. Pull Requests 
-When your feature or algorithm is complete, push your branch and open a Pull Request against `main`. 
-* **Description:** Clearly detail what the PR does. If it relates to the DAA requirements, specify time/space complexity notes in the description.
-* **Review Process:** Before any code is merged, the PR **must** be reviewed and approved by at least one other core team member.
-
-## Project Updates (Can be changed :))
-Completed:
-* [x] Monorepo workspace initialization
-* [x] Docker-compose integration (PostgreSQL + Redis)
-* [x] Express Server scaffolding & Database Schema implementation
-* [x] DAA: Max-Heap Sort algorithm (Leaderboard implementation)
-* [x] DAA: Depth-First Search (DFS) algorithm (Tier Progression validation)
-
-In Progress:
-* [ ] DAA: Binary Search (EcoWrap percentile calculation & XP mapping)
-* [ ] DAA: String Matching (Find-a-Buddy UID search)
-* [ ] DAA: Sorting by Counting (Contribution analytics/tag tallying)
-* [ ] Flutter BLoC integration with backend endpoints
-* [ ] Final UI styling 
-
-#### This is the final project requirement to the DAA course
+For issues, support, or questions, contact roxanek.esquejo@gmail.com or contactjkeaviles@gmail.com.

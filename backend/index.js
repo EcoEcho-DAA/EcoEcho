@@ -1728,10 +1728,14 @@ async function start() {
     console.log('[INIT WARNING] comment_downvotes check skipped:', err.message);
   }
 
-  app.listen(PORT, () => console.log(`EcoEcho API running live on port ${PORT}`));
+  if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => console.log(`EcoEcho API running live on port ${PORT}`));
+  }
 }
 
 start().catch((err) => {
   console.error('Failed to start server:', err);
-  process.exit(1);
 });
+
+// Export the Express app for Vercel
+module.exports = app;

@@ -1,5 +1,7 @@
-// Master DAG dictionary template representing the platform's gamified milestones.
-// Keys are mission IDs, and values are arrays of prerequisite mission IDs.
+// dag dictionary template representing the platform's gamified milestones.
+// keys = mission IDs
+// values are arrays of prerequisite mission IDs.
+
 const MISSION_DAG = {
   1: [],        // Mission 1: no prerequisites
   2: [1],       // Mission 2: requires Mission 1

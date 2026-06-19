@@ -1,13 +1,9 @@
 /**
- * Swaps two elements in an array.
- *
- * Time Complexity: O(1)
- * Space Complexity: O(1)
- *
- * @param {Array} arr - The target array.
- * @param {number} i - Index of the first element.
- * @param {number} j - Index of the second element.
+ * arr - The target array.
+ * i - Index of the first element.
+ * j - Index of the second element.
  */
+
 function swap(arr, i, j) {
   const temp = arr[i];
   arr[i] = arr[j];

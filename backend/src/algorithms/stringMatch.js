@@ -1,13 +1,10 @@
 /**
- * Precomputes the Longest Prefix Suffix (LPS) table for the Knuth-Morris-Pratt (KMP) algorithm.
- * The LPS table stores the lengths of the longest proper prefix of the pattern
+ * precomputes the Longest Prefix Suffix (LPS) table for the Knuth-Morris-Pratt (KMP) algorithm.
+ * it stores the lengths of the longest proper prefix of the pattern
  * that is also a suffix of the pattern's prefix.
- *
- * Time Complexity: O(m) where m is the length of the pattern.
- * Space Complexity: O(m) to store the LPS table array.
- *
- * @param {string} pattern - The search pattern.
- * @returns {number[]} The computed LPS table.
+
+ * pattern - The search pattern.
+ * return number - computed LPS table.
  */
 function buildLps(pattern) {
   const lps = Array(pattern.length).fill(0);

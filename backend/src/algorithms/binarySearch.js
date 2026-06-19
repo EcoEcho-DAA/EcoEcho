@@ -1,13 +1,10 @@
 /**
- * Calculates the percentile rank for a position in a sorted ascending array.
- *
- * Time Complexity: O(1)
- * Space Complexity: O(1)
- *
- * @param {number} index - The index of the item.
- * @param {number} length - The total number of items in the array.
- * @returns {number} The percentile rank (value between 0 and 100).
+ * calculates percentile rank for a position in a sorted ascending array.
+ * index - The index of the item.
+ * length - The total number of items in the array.
+ * return number The percentile rank (value between 0 and 100).
  */
+
 function percentileAtIndex(index, length) {
   if (length <= 0) {
     return 0;

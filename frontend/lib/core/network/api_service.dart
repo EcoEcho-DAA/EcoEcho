@@ -4,7 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
+  // Pulls the API_URL from compilation flag if provided (e.g. on Vercel)
+  static const String _envBaseUrl = String.fromEnvironment('API_URL', defaultValue: '');
+
   static String get baseUrl {
+    if (_envBaseUrl.isNotEmpty) {
+      return _envBaseUrl;
+    }
     if (kIsWeb) {
       return 'http://localhost:3000';
     } else {

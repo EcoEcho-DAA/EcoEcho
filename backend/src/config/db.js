@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const projectRef = 'cgchzvlunkatpjvpuluz';
-const databasePassword = 'echoeco1007';
+const databasePassword = process.env.DB_PASSWORD || 'echoeco1007';
 const cloudRegion = 'ap-southeast-2';
 
 const targetHosts = [

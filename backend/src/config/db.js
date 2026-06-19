@@ -11,6 +11,7 @@ const targetHosts = [
 ];
 
 let activePool = null;
+let initPromise = null;
 
 async function autoDiscoverCloudRoute() {
   for (const host of targetHosts) {
@@ -38,15 +39,15 @@ async function autoDiscoverCloudRoute() {
   }
 
   console.error('[CRITICAL ERROR] All regional cloud infrastructure nodes rejected the credentials.');
-  console.error('Action Item: Please confirm that your Connection Pooler toggle is turned ON inside your Supabase settings dashboard.');
+  throw new Error('Please confirm that your Connection Pooler is ON in Supabase and your DB_PASSWORD is correct.');
 }
 
-autoDiscoverCloudRoute();
+initPromise = autoDiscoverCloudRoute();
 
 module.exports = {
-  query: (text, params) => {
+  query: async (text, params) => {
     if (!activePool) {
-      throw new Error('Database pool is currently optimizing routing paths. Please try your request again in 2 seconds.');
+      await initPromise;
     }
     return activePool.query(text, params);
   },
